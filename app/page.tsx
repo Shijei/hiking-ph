@@ -1,7 +1,10 @@
-import { supabase } from '@/utils/supabase'
+import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
 export default async function Home() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
   const { data: agencies, error } = await supabase
     .from('agencies')
     .select('*')
@@ -11,14 +14,24 @@ export default async function Home() {
     return <p className="p-10 text-red-500">Error: {error.message}</p>
   }
 
-  if (!agencies || agencies.length === 0) {
-    return <p className="p-10 text-gray-500">No agencies found.</p>
-  }
-
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold mb-2">🏔️ Hiking PH</h1>
-      <p className="text-gray-500 mb-8">Find and review hiking agencies in the Philippines.</p>
+
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">🏔️ Hiking PH</h1>
+          <p className="text-gray-500">Find and review hiking agencies in the Philippines.</p>
+        </div>
+        <div>
+          {user ? (
+            <span className="text-sm text-gray-600">Hi, {user.user_metadata.full_name}</span>
+          ) : (
+            <Link href="/login" className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition">
+              Sign in
+            </Link>
+          )}
+        </div>
+      </div>
 
       <div className="grid gap-4">
         {agencies?.map((agency) => (
@@ -36,6 +49,7 @@ export default async function Home() {
           </Link>
         ))}
       </div>
+
     </main>
   )
 }
