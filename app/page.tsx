@@ -22,7 +22,10 @@ export default async function Home() {
           <h1 className="text-3xl font-bold">🏔️ Hiking PH</h1>
           <p className="text-gray-500">Find and review hiking agencies in the Philippines.</p>
         </div>
-        <div>
+        <div className="flex gap-3 items-center">
+          <Link href="/mountains" className="border px-4 py-2 rounded-xl text-sm hover:shadow-md transition">
+            🏔️ Browse Mountains
+          </Link>
           {user ? (
             <span className="text-sm text-gray-600">Hi, {user.user_metadata.full_name}</span>
           ) : (
