@@ -27,7 +27,9 @@ export default async function Home() {
             🏔️ Browse Mountains
           </Link>
           {user ? (
-            <span className="text-sm text-gray-600">Hi, {user.user_metadata.full_name}</span>
+            <Link href="/profile" className="text-sm text-gray-600 hover:underline">
+              Hi, {user.user_metadata.full_name}
+            </Link>
           ) : (
             <Link href="/login" className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition">
               Sign in
