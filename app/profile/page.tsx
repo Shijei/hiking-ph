@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import SignOutButton from './SignOutButton'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -39,6 +40,9 @@ export default async function ProfilePage() {
         <div>
           <h1 className="text-2xl font-bold">{user.user_metadata.full_name}</h1>
           <p className="text-gray-500 text-sm">{user.email}</p>
+          <div className="mt-2">
+            <SignOutButton />
+          </div>
         </div>
       </div>
 
