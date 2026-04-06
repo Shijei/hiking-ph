@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
-import { Geist } from 'next/font/google'
+import { DM_Sans } from 'next/font/google'
 import './globals.css'
 import BottomNav from '@/components/BottomNav'
 
-const geist = Geist({ subsets: ['latin'] })
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-dm-sans',
+})
 
 export const metadata: Metadata = {
   title: 'Hiking PH',
@@ -17,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${geist.className} bg-[#FAF7F2] text-gray-900 min-h-screen`}>
+      <body className={`${dmSans.variable} font-sans bg-[#FAF7F2] text-gray-900 min-h-screen`}>
         <div className="max-w-lg mx-auto min-h-screen pb-24">
           {children}
         </div>

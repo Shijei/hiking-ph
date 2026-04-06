@@ -1,30 +1,42 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import SignOutButton from './SignOutButton'
-import SongPlayer from './SongPlayer'
+import SongPlayer from '../SongPlayer'
 
-export default async function ProfilePage() {
+interface PageProps {
+  params: Promise<{ username: string }>
+}
+
+export default async function PublicProfilePage({ params }: PageProps) {
+  const { username } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('username', username)
     .single()
+
+  if (error || !profile) return notFound()
+
+  // If viewing your own profile redirect to /profile
+  if (currentUser?.id === profile.id) {
+    const { redirect } = await import('next/navigation')
+    redirect('/profile')
+  }
 
   const { data: conquests } = await supabase
     .from('conquests')
     .select('*, mountains(*)')
-    .eq('user_id', user.id)
+    .eq('user_id', profile.id)
     .order('conquered_at', { ascending: false })
 
   const { data: reviews } = await supabase
     .from('reviews')
     .select('*, agencies(*)')
-    .eq('user_id', user.id)
+    .eq('user_id', profile.id)
     .order('created_at', { ascending: false })
 
   const headerCard = {
@@ -56,30 +68,29 @@ export default async function ProfilePage() {
   return (
     <main style={{ padding: '24px 16px' }}>
 
+      <Link href="/" style={{ fontSize: '13px', color: '#9ca3af', textDecoration: 'none', display: 'inline-block', marginBottom: '20px' }}>
+        ← Back
+      </Link>
+
       {/* Profile Header */}
-      <div style={{ ...headerCard, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-          {user.user_metadata.avatar_url && (
-            <img
-              src={user.user_metadata.avatar_url}
-              alt="Avatar"
-              style={{ width: '52px', height: '52px', borderRadius: '50%', objectFit: 'cover' }}
-            />
-          )}
-          <div>
-            <p style={{ fontWeight: 600, fontSize: '16px' }}>@{profile?.username}</p>
-            <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '2px' }}>{profile?.bio ?? 'No bio yet.'}</p>
-          </div>
+      <div style={{ ...headerCard, display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {profile.avatar_url && (
+          <img
+            src={profile.avatar_url}
+            alt="Avatar"
+            style={{ width: '52px', height: '52px', borderRadius: '50%', objectFit: 'cover' }}
+          />
+        )}
+        <div>
+          <p style={{ fontWeight: 600, fontSize: '16px' }}>@{profile.username}</p>
+          <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '2px' }}>
+            {profile.bio ?? 'No bio yet.'}
+          </p>
         </div>
-        <Link
-          href="/profile/edit"
-          style={{ fontSize: '12px', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '6px 12px', color: '#6b7280', textDecoration: 'none' }}
-        >
-          Edit
-        </Link>
       </div>
 
-      {profile?.song_url && (
+      {/* Song */}
+      {profile.song_url && (
         <div style={{ marginBottom: '8px' }}>
           <SongPlayer songUrl={profile.song_url} autoplay={true} />
         </div>
@@ -111,12 +122,16 @@ export default async function ProfilePage() {
             >
               <div>
                 <p style={{ fontSize: '14px', fontWeight: 500 }}>{conquest.mountains.name}</p>
-                <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>{conquest.mountains.provinces?.join(', ')}</p>
+                <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
+                  {conquest.mountains.provinces?.join(', ')}
+                </p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: '14px', fontWeight: 500 }}>{conquest.mountains.elevation}m</p>
                 <p style={{ fontSize: '12px', color: '#9ca3af' }}>
-                  {new Date(conquest.conquered_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {new Date(conquest.conquered_at).toLocaleDateString('en-PH', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                  })}
                 </p>
               </div>
             </Link>
@@ -125,9 +140,6 @@ export default async function ProfilePage() {
       ) : (
         <div style={{ padding: '16px 0', marginBottom: '16px' }}>
           <p style={{ fontSize: '14px', color: '#9ca3af' }}>No mountains conquered yet.</p>
-          <Link href="/explore/mountains" style={{ fontSize: '13px', color: '#111827', textDecoration: 'underline', display: 'inline-block', marginTop: '4px' }}>
-            Start exploring!
-          </Link>
         </div>
       )}
 
@@ -145,7 +157,9 @@ export default async function ProfilePage() {
             >
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: '14px', fontWeight: 500 }}>{review.agencies.name}</p>
-                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>{review.body}</p>
+                <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+                  {review.body}
+                </p>
               </div>
               <p style={{ fontSize: '14px', fontWeight: 500, marginLeft: '16px' }}>{review.rating}/5</p>
             </Link>
@@ -156,10 +170,6 @@ export default async function ProfilePage() {
           <p style={{ fontSize: '14px', color: '#9ca3af' }}>No reviews written yet.</p>
         </div>
       )}
-
-      <div style={{ textAlign: 'center' }}>
-        <SignOutButton />
-      </div>
 
     </main>
   )

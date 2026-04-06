@@ -19,32 +19,32 @@ export default async function AgenciesPage() {
   }) ?? []
 
   return (
-    <main className="px-4 py-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/explore" className="text-gray-400 hover:text-gray-600">←</Link>
-        <h1 className="text-2xl font-bold">Agencies</h1>
+    <main style={{ padding: '24px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+        <Link href="/explore" style={{ fontSize: '13px', color: '#9ca3af', textDecoration: 'none' }}>←</Link>
+        <h1 style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em' }}>Agencies</h1>
       </div>
 
-      <div className="grid gap-3">
-        {agenciesWithRating.map((agency) => (
+      <div>
+        {agenciesWithRating.map((agency, index) => (
           <Link
             key={agency.id}
             href={`/agencies/${agency.id}`}
-            className="block bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
+            style={{ display: 'block', textDecoration: 'none', color: 'inherit', paddingTop: index === 0 ? 0 : '16px', paddingBottom: '16px', borderBottom: '1px solid #f3f4f6' }}
           >
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-semibold">{agency.name}</p>
-                <p className="text-sm text-gray-500 mt-1">{agency.description}</p>
-                <p className="text-xs text-gray-400 mt-2">
-                  📍 {agency.regions?.join(', ')} · 💰 {agency.price_range}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '15px', fontWeight: 600 }}>{agency.name}</p>
+                <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '3px', lineHeight: 1.4 }}>{agency.description}</p>
+                <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '6px' }}>
+                  {agency.regions?.join(', ')} · {agency.price_range}
                 </p>
               </div>
-              <div className="text-right ml-4 shrink-0">
-                <p className="text-lg font-bold">
+              <div style={{ textAlign: 'right', marginLeft: '16px', flexShrink: 0 }}>
+                <p style={{ fontSize: '18px', fontWeight: 700 }}>
                   {agency.avgRating > 0 ? agency.avgRating.toFixed(1) : '—'}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
                   {agency.reviewCount} {agency.reviewCount === 1 ? 'review' : 'reviews'}
                 </p>
               </div>

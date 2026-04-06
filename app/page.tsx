@@ -5,7 +5,6 @@ import PostCard from './feed/PostCard'
 
 export default async function Home() {
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
 
   const { data: posts, error } = await supabase
@@ -23,47 +22,38 @@ export default async function Home() {
   }
 
   const userLikes = user
-    ? await supabase
-        .from('post_likes')
-        .select('post_id')
-        .eq('user_id', user.id)
+    ? await supabase.from('post_likes').select('post_id').eq('user_id', user.id)
     : { data: [] }
 
   const likedPostIds = new Set(userLikes.data?.map((l) => l.post_id))
 
   return (
     <main className="px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">🌿 Community Feed</h1>
-        <p className="text-sm text-gray-500">Stories, tips, and adventures from fellow hikers.</p>
+      <div className="mb-5">
+        <h1 className="text-xl font-semibold tracking-tight">Community Feed</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Stories, tips, and adventures from fellow hikers.</p>
       </div>
 
-      {user ? (
-        <PostForm userId={user.id} />
-      ) : (
-        <div className="border rounded-xl p-5 text-center mb-6 bg-white">
-          <p className="text-gray-500 mb-3">Sign in to post in the community.</p>
-          <Link
-            href="/login"
-            className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition"
-          >
-            Sign in
-          </Link>
-        </div>
-      )}
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#FAF7F2', paddingBottom: '8px' }}>
+        {user ? (
+          <PostForm userId={user.id} />
+        ) : (
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', padding: '20px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+            <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '12px' }}>Sign in to post in the community.</p>
+            <Link href="/login" style={{ backgroundColor: '#111827', color: '#ffffff', padding: '8px 16px', borderRadius: '12px', fontSize: '14px', textDecoration: 'none' }}>
+              Sign in
+            </Link>
+          </div>
+        )}
+      </div>
 
-      <div className="grid gap-4 mt-4">
+      <div className="grid gap-3 mt-4">
         {posts && posts.length > 0 ? (
           posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              user={user}
-              liked={likedPostIds.has(post.id)}
-            />
+            <PostCard key={post.id} post={post} user={user} liked={likedPostIds.has(post.id)} />
           ))
         ) : (
-          <p className="text-gray-400 text-center py-10">
+          <p className="text-gray-400 text-sm text-center py-10">
             No posts yet. Be the first to share something!
           </p>
         )}

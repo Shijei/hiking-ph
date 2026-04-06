@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import ConquestButton from './ConquestButton'
+import Link from 'next/link'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -9,7 +10,6 @@ interface PageProps {
 export default async function MountainPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
 
   const { data: mountain, error } = await supabase
@@ -21,12 +21,7 @@ export default async function MountainPage({ params }: PageProps) {
   if (error || !mountain) return notFound()
 
   const { data: conquest } = user
-    ? await supabase
-        .from('conquests')
-        .select('*')
-        .eq('mountain_id', id)
-        .eq('user_id', user.id)
-        .single()
+    ? await supabase.from('conquests').select('*').eq('mountain_id', id).eq('user_id', user.id).single()
     : { data: null }
 
   const { count } = await supabase
@@ -35,73 +30,78 @@ export default async function MountainPage({ params }: PageProps) {
     .eq('mountain_id', id)
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
-      <a href="/mountains" className="text-sm text-gray-400 hover:text-gray-600 mb-6 inline-block">
-        Back to mountains
-      </a>
+    <main style={{ padding: '24px 16px' }}>
 
-      <div className="border rounded-xl p-6 mb-8">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold">
+      <Link href="/explore/mountains" style={{ fontSize: '13px', color: '#9ca3af', textDecoration: 'none', display: 'inline-block', marginBottom: '20px' }}>
+        ← Back
+      </Link>
+
+      {/* Mountain Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontSize: '26px', fontWeight: 700, letterSpacing: '-0.02em' }}>
               {mountain.name}
               {mountain.is_volcano && (
-                <span className="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full align-middle">
+                <span style={{ fontSize: '11px', backgroundColor: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px', fontWeight: 500, verticalAlign: 'middle' }}>
                   Volcano
                 </span>
               )}
             </h1>
-            <p className="text-gray-500 mt-1">{mountain.island_group}</p>
+            <p style={{ fontSize: '14px', color: '#9ca3af', marginTop: '4px' }}>{mountain.island_group}</p>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold">{mountain.elevation}m</p>
-            <p className="text-sm text-gray-400">elevation</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mt-6 text-sm">
-          <div>
-            <p className="text-gray-400">Province/s</p>
-            <p className="font-medium">{mountain.provinces?.join(', ')}</p>
-          </div>
-          <div>
-            <p className="text-gray-400">Region/s</p>
-            <p className="font-medium">{mountain.regions?.join(', ')}</p>
-          </div>
-          <div>
-            <p className="text-gray-400">Coordinates</p>
-            <p className="font-medium">{mountain.coordinates ?? 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-gray-400">Hikers conquered</p>
-            <p className="font-medium">{count ?? 0}</p>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: '32px', fontWeight: 700 }}>{mountain.elevation}m</p>
+            <p style={{ fontSize: '12px', color: '#9ca3af' }}>elevation</p>
           </div>
         </div>
-
-        {mountain.alt_names?.length > 0 && (
-          <div className="mt-4 text-sm">
-            <p className="text-gray-400">Also known as</p>
-            <p className="font-medium">{mountain.alt_names.join(', ')}</p>
-          </div>
-        )}
       </div>
 
-      <div className="mb-8">
-        {user ? (
-          <ConquestButton
-            mountainId={id}
-            userId={user.id}
-            conquered={!!conquest}
-          />
-        ) : (
-          <div className="border rounded-xl p-5 text-center">
-            <p className="text-gray-500 mb-3">Sign in to mark this mountain as conquered.</p>
-            <a href="/login" className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition">
-              Sign in
-            </a>
-          </div>
-        )}
+      {/* Divider */}
+      <div style={{ height: '1px', backgroundColor: '#e5e7eb', marginBottom: '20px' }} />
+
+      {/* Details */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+        <div>
+          <p style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Province/s</p>
+          <p style={{ fontSize: '14px', fontWeight: 500 }}>{mountain.provinces?.join(', ')}</p>
+        </div>
+        <div>
+          <p style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Region/s</p>
+          <p style={{ fontSize: '14px', fontWeight: 500 }}>{mountain.regions?.join(', ')}</p>
+        </div>
+        <div>
+          <p style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Coordinates</p>
+          <p style={{ fontSize: '14px', fontWeight: 500 }}>{mountain.coordinates ?? 'N/A'}</p>
+        </div>
+        <div>
+          <p style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Hikers Conquered</p>
+          <p style={{ fontSize: '14px', fontWeight: 500 }}>{count ?? 0}</p>
+        </div>
       </div>
+
+      {mountain.alt_names?.length > 0 && (
+        <div style={{ marginBottom: '20px' }}>
+          <p style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Also known as</p>
+          <p style={{ fontSize: '14px', fontWeight: 500 }}>{mountain.alt_names.join(', ')}</p>
+        </div>
+      )}
+
+      {/* Divider */}
+      <div style={{ height: '1px', backgroundColor: '#e5e7eb', marginBottom: '20px' }} />
+
+      {/* Conquest */}
+      {user ? (
+        <ConquestButton mountainId={id} userId={user.id} conquered={!!conquest} />
+      ) : (
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <p style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '10px' }}>Sign in to mark this mountain as conquered.</p>
+          <Link href="/login" style={{ backgroundColor: '#111827', color: '#ffffff', padding: '8px 16px', borderRadius: '12px', fontSize: '13px', textDecoration: 'none' }}>
+            Sign in
+          </Link>
+        </div>
+      )}
+
     </main>
   )
 }

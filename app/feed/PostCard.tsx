@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { Heart, ChatCircle } from '@phosphor-icons/react'
+import Link from 'next/link'
 
 interface Props {
   post: any
@@ -21,22 +23,16 @@ export default function PostCard({ post, user, liked }: Props) {
   const router = useRouter()
 
   const handleLike = async () => {
-    if (!user) return
+    if (!user || loadingLike) return
     setLoadingLike(true)
     const supabase = createClient()
 
     if (isLiked) {
-      await supabase
-        .from('post_likes')
-        .delete()
-        .eq('post_id', post.id)
-        .eq('user_id', user.id)
+      await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', user.id)
       setIsLiked(false)
       setLikeCount((c: number) => c - 1)
     } else {
-      await supabase
-        .from('post_likes')
-        .insert({ post_id: post.id, user_id: user.id })
+      await supabase.from('post_likes').insert({ post_id: post.id, user_id: user.id })
       setIsLiked(true)
       setLikeCount((c: number) => c + 1)
     }
@@ -47,7 +43,7 @@ export default function PostCard({ post, user, liked }: Props) {
     const supabase = createClient()
     const { data } = await supabase
       .from('post_comments')
-      .select('*, profiles(full_name)')
+      .select('*, profiles(full_name, username)')
       .eq('post_id', post.id)
       .order('created_at', { ascending: true })
     setComments(data ?? [])
@@ -62,14 +58,12 @@ export default function PostCard({ post, user, liked }: Props) {
     e.preventDefault()
     if (!commentBody.trim() || !user) return
     setLoadingComment(true)
-
     const supabase = createClient()
     await supabase.from('post_comments').insert({
       post_id: post.id,
       user_id: user.id,
       body: commentBody,
     })
-
     setCommentBody('')
     await loadComments()
     setLoadingComment(false)
@@ -77,67 +71,69 @@ export default function PostCard({ post, user, liked }: Props) {
   }
 
   return (
-    <div className="border rounded-xl p-5">
-      <div className="flex items-center gap-2 mb-2">
+    <div style={{ paddingTop: '16px', paddingBottom: '16px', borderBottom: '1px solid #f3f4f6' }}>
+      {/* Author */}
+      <div className="flex items-center gap-2 mb-3">
         {post.profiles?.avatar_url && (
           <img
             src={post.profiles.avatar_url}
-            alt={post.profiles?.full_name ?? 'User'}
-            className="w-7 h-7 rounded-full"
+            alt=""
+            className="w-8 h-8 rounded-full object-cover"
           />
         )}
         <div>
-          <p className="text-sm font-medium">{post.profiles?.full_name ?? 'Anonymous'}</p>
+          <Link
+            href={`/profile/${post.profiles?.username}`}
+            style={{ fontSize: '14px', fontWeight: 500, textDecoration: 'none', color: 'inherit' }}
+          >
+            @{post.profiles?.username ?? post.profiles?.full_name ?? 'Anonymous'}
+          </Link>
           <p className="text-xs text-gray-400">
             {new Date(post.created_at).toLocaleDateString('en-PH', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
+              month: 'short', day: 'numeric', year: 'numeric'
             })}
           </p>
         </div>
       </div>
 
-      <p className="text-gray-800 mb-4">{post.body}</p>
+      {/* Body */}
+      <p className="text-sm text-gray-800 leading-relaxed mb-3">{post.body}</p>
 
-      <div className="flex gap-4 text-sm">
+      {/* Actions */}
+      <div className="flex gap-4">
         <button
           onClick={handleLike}
           disabled={!user || loadingLike}
-          className={`flex items-center gap-1 transition ${
+          className={`flex items-center gap-1.5 text-sm transition disabled:opacity-40 ${
             isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
-          } disabled:opacity-40`}
+          }`}
         >
-          {isLiked ? '❤️' : '🤍'} {likeCount}
+          <Heart size={16} weight={isLiked ? 'fill' : 'regular'} />
+          <span>{likeCount}</span>
         </button>
 
         <button
           onClick={handleToggleComments}
-          className="flex items-center gap-1 text-gray-400 hover:text-gray-600 transition"
+          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition"
         >
-          💬 {post.post_comments[0]?.count ?? 0}
+          <ChatCircle size={16} weight={showComments ? 'fill' : 'regular'} />
+          <span>{post.post_comments[0]?.count ?? 0}</span>
         </button>
       </div>
 
+      {/* Comments */}
       {showComments && (
         <div className="mt-4 border-t pt-4">
           {comments.length > 0 ? (
             <div className="grid gap-3 mb-4">
               {comments.map((comment) => (
-              <div key={comment.id} className="text-sm">
-                <p className="font-medium text-xs text-gray-600 mb-0.5">
-                  {comment.profiles?.full_name ?? 'Anonymous'}
-                </p>
-                <p className="text-gray-800">{comment.body}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {new Date(comment.created_at).toLocaleDateString('en-PH', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </p>
-              </div>
-            ))}
+                <div key={comment.id}>
+                  <p className="text-xs font-medium text-gray-600">
+                    @{comment.profiles?.username ?? comment.profiles?.full_name ?? 'Anonymous'}
+                  </p>
+                  <p className="text-sm text-gray-800 mt-0.5">{comment.body}</p>
+                </div>
+              ))}
             </div>
           ) : (
             <p className="text-sm text-gray-400 mb-4">No comments yet.</p>
@@ -150,12 +146,12 @@ export default function PostCard({ post, user, liked }: Props) {
                 value={commentBody}
                 onChange={(e) => setCommentBody(e.target.value)}
                 placeholder="Write a comment..."
-                className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-gray-400"
               />
               <button
                 type="submit"
                 disabled={loadingComment || !commentBody.trim()}
-                className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition disabled:opacity-50"
+                className="bg-gray-900 text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-700 transition disabled:opacity-50"
               >
                 {loadingComment ? '...' : 'Send'}
               </button>

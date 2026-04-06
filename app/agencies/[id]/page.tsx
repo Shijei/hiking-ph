@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import ReviewForm from './ReviewForm'
+import Link from 'next/link'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -8,9 +9,7 @@ interface PageProps {
 
 export default async function AgencyPage({ params }: PageProps) {
   const { id } = await params
-
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
 
   const { data: agency, error: agencyError } = await supabase
@@ -27,84 +26,84 @@ export default async function AgencyPage({ params }: PageProps) {
     .eq('agency_id', id)
     .order('created_at', { ascending: false })
 
-  const avgRating =
-    reviews && reviews.length > 0
-      ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
-      : null
+  const avgRating = reviews && reviews.length > 0
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : null
 
   const reviewCount = reviews?.length ?? 0
   const fbUrl = agency.fb_page_url as string | null
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
+    <main style={{ padding: '24px 16px' }}>
 
-      <a href="/" className="text-sm text-gray-400 hover:text-gray-600 mb-6 inline-block">
-        Back to agencies
-      </a>
+      <Link href="/explore/agencies" style={{ fontSize: '13px', color: '#9ca3af', textDecoration: 'none', display: 'inline-block', marginBottom: '20px' }}>
+        ← Back
+      </Link>
 
-      <div className="border rounded-xl p-6 mb-8">
-        <h1 className="text-3xl font-bold">{agency.name}</h1>
-        <p className="text-gray-500 mt-2">{agency.description}</p>
+      {/* Agency Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '26px', fontWeight: 700, letterSpacing: '-0.02em' }}>{agency.name}</h1>
+        <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '6px', lineHeight: 1.5 }}>{agency.description}</p>
 
-        <div className="flex flex-wrap gap-4 mt-4 text-sm text-gray-500">
-          <span>Price: {agency.price_range}</span>
-          <span>Location: {agency.regions?.join(', ')}</span>
-        </div>
-
-        {fbUrl && (
-          <div className="mt-2">
-            <a href={fbUrl} target="_blank" className="text-blue-500 text-sm hover:underline">
+        <div style={{ display: 'flex', gap: '16px', marginTop: '12px', flexWrap: 'wrap' }}>
+          <p style={{ fontSize: '13px', color: '#9ca3af' }}>{agency.price_range}</p>
+          <p style={{ fontSize: '13px', color: '#9ca3af' }}>{agency.regions?.join(', ')}</p>
+          {fbUrl && (
+            <a href={fbUrl} target="_blank" style={{ fontSize: '13px', color: '#3b82f6', textDecoration: 'none' }}>
               Facebook Page
             </a>
-          </div>
-        )}
+          )}
+        </div>
 
         {avgRating && (
-          <div className="mt-4 text-2xl font-semibold">
-            {avgRating} / 5
-            <span className="text-sm text-gray-400 font-normal ml-2">
-              ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
-            </span>
+          <div style={{ marginTop: '16px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+            <p style={{ fontSize: '32px', fontWeight: 700 }}>{avgRating}</p>
+            <p style={{ fontSize: '13px', color: '#9ca3af' }}>/ 5 · {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}</p>
           </div>
         )}
       </div>
 
-      <div className="mb-8">
+      {/* Divider */}
+      <div style={{ height: '1px', backgroundColor: '#e5e7eb', marginBottom: '24px' }} />
+
+      {/* Review Form */}
+      <div style={{ marginBottom: '24px' }}>
         {user ? (
           <ReviewForm agencyId={id} userId={user.id} />
         ) : (
-          <div className="border rounded-xl p-5 text-center">
-            <p className="text-gray-500 mb-3">Sign in to write a review.</p>
-            <a href="/login" className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition">
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <p style={{ fontSize: '14px', color: '#9ca3af', marginBottom: '10px' }}>Sign in to write a review.</p>
+            <Link href="/login" style={{ backgroundColor: '#111827', color: '#ffffff', padding: '8px 16px', borderRadius: '12px', fontSize: '13px', textDecoration: 'none' }}>
               Sign in
-            </a>
+            </Link>
           </div>
         )}
       </div>
 
-      <h2 className="text-xl font-semibold mb-4">Reviews</h2>
+      {/* Reviews */}
+      <div>
+        <p style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px' }}>
+          Reviews
+        </p>
 
-      {reviews && reviews.length > 0 ? (
-        <div className="grid gap-4">
-          {reviews.map((review) => (
-            <div key={review.id} className="border rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="font-medium">{review.rating} / 5</span>
-                <span className="text-sm text-gray-400">
-                  {new Date(review.created_at).toLocaleDateString('en-PH', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </span>
+        {reviews && reviews.length > 0 ? (
+          <div style={{ display: 'grid', gap: '16px' }}>
+            {reviews.map((review) => (
+              <div key={review.id} style={{ borderBottom: '1px solid #f3f4f6', paddingBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <p style={{ fontSize: '14px', fontWeight: 600 }}>{review.rating} / 5</p>
+                  <p style={{ fontSize: '12px', color: '#9ca3af' }}>
+                    {new Date(review.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </p>
+                </div>
+                <p style={{ fontSize: '14px', color: '#374151', lineHeight: 1.5 }}>{review.body}</p>
               </div>
-              <p className="text-gray-700">{review.body}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-400">No reviews yet. Be the first to review this agency!</p>
-      )}
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: '14px', color: '#9ca3af' }}>No reviews yet. Be the first!</p>
+        )}
+      </div>
 
     </main>
   )
