@@ -156,7 +156,25 @@ export default async function ProfilePage() {
           <p style={{ fontSize: '14px', color: '#9ca3af' }}>No reviews written yet.</p>
         </div>
       )}
-
+      {/* Agency Application */}
+      {profile?.role === 'hiker' && (
+        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+          <Link
+            href="/agency-apply"
+            style={{ fontSize: '13px', color: '#6b7280', textDecoration: 'underline' }}
+          >
+            Leading hikers to the summit? Register your agency
+          </Link>
+        </div>
+      )}
+      {profile?.role === 'admin' && (
+        <Link
+          href="/admin"
+          style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none', display: 'inline-block', marginBottom: '16px' }}
+        >
+          Admin Dashboard →
+        </Link>
+      )}
       <div style={{ textAlign: 'center' }}>
         <SignOutButton />
       </div>
