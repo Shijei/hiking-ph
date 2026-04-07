@@ -130,7 +130,7 @@ export default async function ExplorePage() {
             >
               <Mountains size={24} weight="duotone" style={{ color: '#6b7280', marginBottom: '6px' }} />
               <p style={{ fontSize: '10px', fontWeight: 500, textAlign: 'center', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                {mountain.name}
+                {mountain.name.replace(/^Mount\s+/i, 'Mt. ')}
               </p>
               <p style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>{mountain.elevation}m</p>
             </Link>

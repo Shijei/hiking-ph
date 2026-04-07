@@ -97,8 +97,14 @@ export default function PostCard({ post, user, liked }: Props) {
       </div>
 
       {/* Body */}
-      <p className="text-sm text-gray-800 leading-relaxed mb-3">{post.body}</p>
-
+      <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.6, marginBottom: '8px' }}>{post.body}</p>
+      {post.mountains && (
+        <div style={{ marginBottom: '10px' }}>
+          <span style={{ fontSize: '11px', backgroundColor: '#f3f4f6', color: '#6b7280', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>
+            {post.mountains.name} · {post.mountains.elevation}m
+          </span>
+        </div>
+      )}      
       {/* Actions */}
       <div className="flex gap-4">
         <button

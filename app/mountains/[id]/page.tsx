@@ -41,7 +41,7 @@ export default async function MountainPage({ params }: PageProps) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ flex: 1 }}>
             <h1 style={{ fontSize: '26px', fontWeight: 700, letterSpacing: '-0.02em' }}>
-              {mountain.name}
+              {mountain.name.replace(/^Mount\s+/i, 'Mt. ')}
               {mountain.is_volcano && (
                 <span style={{ fontSize: '11px', backgroundColor: '#fee2e2', color: '#ef4444', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px', fontWeight: 500, verticalAlign: 'middle' }}>
                   Volcano

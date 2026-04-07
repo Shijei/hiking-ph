@@ -12,6 +12,7 @@ export default async function Home() {
     .select(`
       *,
       profiles(full_name, avatar_url, username),
+      mountains(name, elevation),
       post_likes(count),
       post_comments(count)
     `)
@@ -28,10 +29,10 @@ export default async function Home() {
   const likedPostIds = new Set(userLikes.data?.map((l) => l.post_id))
 
   return (
-    <main className="px-4 py-6">
-      <div className="mb-5">
-        <h1 className="text-xl font-semibold tracking-tight">Community Feed</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Stories, tips, and adventures from fellow hikers.</p>
+    <main style={{ padding: '20px 20px' }}>
+      <div style={{ marginBottom: '16px' }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 600, letterSpacing: '-0.01em' }}>Community Feed</h1>
+        <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '2px' }}>Stories, tips, and adventures from fellow hikers.</p>
       </div>
 
       <div style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#FAF7F2', paddingBottom: '8px' }}>
@@ -47,13 +48,13 @@ export default async function Home() {
         )}
       </div>
 
-      <div className="grid gap-3 mt-4">
+      <div style={{ display: 'grid', gap: '0', marginTop: '8px' }}>
         {posts && posts.length > 0 ? (
           posts.map((post) => (
             <PostCard key={post.id} post={post} user={user} liked={likedPostIds.has(post.id)} />
           ))
         ) : (
-          <p className="text-gray-400 text-sm text-center py-10">
+          <p style={{ fontSize: '14px', color: '#9ca3af', textAlign: 'center', padding: '40px 0' }}>
             No posts yet. Be the first to share something!
           </p>
         )}
