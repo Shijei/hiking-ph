@@ -160,11 +160,11 @@ export default function PostForm({ userId }: Props) {
         {/* Actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <p style={{ fontSize: '12px', color: '#9ca3af' }}>
-            {!selectedMountain ? 'Mountain tag required' : ''}
+            {selectedMountain ? '' : 'Tag a mountain (optional)'}
           </p>
           <button
             type="submit"
-            disabled={loading || !body.trim() || !selectedMountain}
+            disabled={loading || !body.trim()}
             style={{ backgroundColor: '#111827', color: '#ffffff', padding: '7px 18px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, border: 'none', cursor: 'pointer', opacity: loading || !body.trim() || !selectedMountain ? 0.5 : 1, fontFamily: 'inherit' }}
           >
             {loading ? 'Posting...' : 'Post'}
