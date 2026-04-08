@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { Image, X } from '@phosphor-icons/react'
 
 interface Props {
   userId: string
@@ -26,21 +27,22 @@ export default function PostForm({ userId }: Props) {
   const [mountains, setMountains] = useState<Mountain[]>([])
   const [selectedMountain, setSelectedMountain] = useState<Mountain | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const formRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  // Close on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (formRef.current && !formRef.current.contains(e.target as Node)) {
-        if (!body.trim() && !selectedMountain) setExpanded(false)
+        if (!body.trim() && !selectedMountain && !imageFile) setExpanded(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [body, selectedMountain])
+  }, [body, selectedMountain, imageFile])
 
-  // Mountain search
   useEffect(() => {
     if (search.length < 2) { setMountains([]); setShowDropdown(false); return }
     const timeout = setTimeout(async () => {
@@ -63,24 +65,56 @@ export default function PostForm({ userId }: Props) {
     setShowDropdown(false)
   }
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  const removeImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!body.trim() || !selectedMountain) return
+    if (!body.trim()) return
     setLoading(true)
     const supabase = createClient()
+
+    let image_url: string | null = null
+
+    if (imageFile) {
+      const ext = imageFile.name.split('.').pop()
+      const path = `${userId}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('post-images')
+        .upload(path, imageFile)
+
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from('post-images').getPublicUrl(path)
+        image_url = urlData.publicUrl
+      }
+    }
+
     await supabase.from('posts').insert({
       user_id: userId,
       body,
-      mountain_id: selectedMountain.id,
+      mountain_id: selectedMountain?.id ?? null,
+      image_url,
     })
+
     setBody('')
     setSelectedMountain(null)
+    setImageFile(null)
+    setImagePreview(null)
     setExpanded(false)
     setLoading(false)
     router.refresh()
   }
 
-  // Collapsed state
   if (!expanded) {
     return (
       <div
@@ -92,7 +126,6 @@ export default function PostForm({ userId }: Props) {
     )
   }
 
-  // Expanded state
   return (
     <div
       ref={formRef}
@@ -100,7 +133,6 @@ export default function PostForm({ userId }: Props) {
     >
       <form onSubmit={handleSubmit}>
 
-        {/* Textarea */}
         <textarea
           autoFocus
           value={body}
@@ -110,6 +142,20 @@ export default function PostForm({ userId }: Props) {
           placeholder="Share a hiking story, tip, or question..."
           style={{ width: '100%', fontSize: '14px', border: 'none', outline: 'none', resize: 'none', marginBottom: '12px', fontFamily: 'inherit', backgroundColor: 'transparent' }}
         />
+
+        {/* Image preview */}
+        {imagePreview && (
+          <div style={{ position: 'relative', marginBottom: '12px', borderRadius: '10px', overflow: 'hidden', display: 'inline-block' }}>
+            <img src={imagePreview} alt="Preview" style={{ maxHeight: '180px', maxWidth: '100%', display: 'block', borderRadius: '10px' }} />
+            <button
+              type="button"
+              onClick={removeImage}
+              style={{ position: 'absolute', top: '6px', right: '6px', backgroundColor: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={13} color="#fff" weight="bold" />
+            </button>
+          </div>
+        )}
 
         <div style={{ height: '1px', backgroundColor: '#f3f4f6', marginBottom: '12px' }} />
 
@@ -157,15 +203,35 @@ export default function PostForm({ userId }: Props) {
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p style={{ fontSize: '12px', color: '#9ca3af' }}>
-            {selectedMountain ? '' : 'Tag a mountain (optional)'}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Image upload button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!!imageFile}
+              style={{ background: 'none', border: 'none', cursor: imageFile ? 'not-allowed' : 'pointer', color: imageFile ? '#d1d5db' : '#9ca3af', padding: 0, display: 'flex', alignItems: 'center' }}
+              title="Attach a photo"
+            >
+              <Image size={18} weight="regular" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              style={{ display: 'none' }}
+            />
+            {!selectedMountain && (
+              <p style={{ fontSize: '12px', color: '#9ca3af' }}>Tag the mountain (optional)</p>
+            )}
+          </div>
+
           <button
             type="submit"
             disabled={loading || !body.trim()}
-            style={{ backgroundColor: '#111827', color: '#ffffff', padding: '7px 18px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, border: 'none', cursor: 'pointer', opacity: loading || !body.trim() || !selectedMountain ? 0.5 : 1, fontFamily: 'inherit' }}
+            style={{ backgroundColor: '#111827', color: '#ffffff', padding: '7px 18px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, border: 'none', cursor: 'pointer', opacity: loading || !body.trim() ? 0.5 : 1, fontFamily: 'inherit' }}
           >
             {loading ? 'Posting...' : 'Post'}
           </button>

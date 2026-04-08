@@ -12,6 +12,24 @@ interface Props {
   liked: boolean
 }
 
+function getRelativeTime(dateStr: string) {
+  const now = new Date()
+  const date = new Date(dateStr)
+  const diffMs = now.getTime() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  const diffWeeks = Math.floor(diffDays / 7)
+
+  if (diffMin < 1) return 'just now'
+  if (diffMin < 60) return `${diffMin}m`
+  if (diffHours < 24) return `${diffHours}h`
+  if (diffDays < 7) return `${diffDays}d`
+  if (diffDays < 30) return `${diffWeeks}w`
+
+  return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`
+}
+
 export default function PostCard({ post, user, liked }: Props) {
   const [isLiked, setIsLiked] = useState(liked)
   const [likeCount, setLikeCount] = useState(post.post_likes[0]?.count ?? 0)
@@ -71,93 +89,116 @@ export default function PostCard({ post, user, liked }: Props) {
   }
 
   return (
-    <div style={{ paddingTop: '16px', paddingBottom: '16px', borderBottom: '1px solid #f3f4f6' }}>
-      {/* Author */}
-      <div className="flex items-center gap-2 mb-3">
+    <div style={{ paddingTop: '14px', paddingBottom: '14px', borderBottom: '1px solid #f3f4f6' }}>
+
+      {/* Author row — compact */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         {post.profiles?.avatar_url && (
           <img
             src={post.profiles.avatar_url}
             alt=""
-            className="w-8 h-8 rounded-full object-cover"
+            style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
           />
         )}
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
           <Link
             href={`/profile/${post.profiles?.username}`}
-            style={{ fontSize: '14px', fontWeight: 500, textDecoration: 'none', color: 'inherit' }}
+            style={{ fontSize: '13px', fontWeight: 600, textDecoration: 'none', color: 'inherit' }}
           >
             @{post.profiles?.username ?? post.profiles?.full_name ?? 'Anonymous'}
           </Link>
-          <p className="text-xs text-gray-400">
-            {new Date(post.created_at).toLocaleDateString('en-PH', {
-              month: 'short', day: 'numeric', year: 'numeric'
-            })}
-          </p>
+          <span style={{ color: '#d1d5db', fontSize: '12px' }}>·</span>
+          <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+            {getRelativeTime(post.created_at)}
+          </span>
         </div>
       </div>
 
       {/* Body */}
-      <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.6, marginBottom: '8px' }}>{post.body}</p>
+      <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.6, marginBottom: '8px' }}>
+        {post.body}
+      </p>
+
+      {/* Image */}
+      {post.image_url && (
+        <div style={{ marginBottom: '10px', borderRadius: '10px', overflow: 'hidden' }}>
+          <img
+            src={post.image_url}
+            alt="Post image"
+            style={{ width: '100%', maxHeight: '280px', objectFit: 'cover', display: 'block' }}
+          />
+        </div>
+      )}
+
+      {/* Mountain tag */}
       {post.mountains && (
         <div style={{ marginBottom: '10px' }}>
           <span style={{ fontSize: '11px', backgroundColor: '#f3f4f6', color: '#6b7280', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>
             {post.mountains.name} · {post.mountains.elevation}m
           </span>
         </div>
-      )}      
+      )}
+
       {/* Actions */}
-      <div className="flex gap-4">
+      <div style={{ display: 'flex', gap: '16px' }}>
         <button
           onClick={handleLike}
           disabled={!user || loadingLike}
-          className={`flex items-center gap-1.5 text-sm transition disabled:opacity-40 ${
-            isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
-          }`}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            color: isLiked ? '#ef4444' : '#9ca3af',
+            opacity: (!user || loadingLike) ? 0.4 : 1,
+          }}
         >
-          <Heart size={16} weight={isLiked ? 'fill' : 'regular'} />
+          <Heart size={15} weight={isLiked ? 'fill' : 'regular'} />
           <span>{likeCount}</span>
         </button>
 
         <button
           onClick={handleToggleComments}
-          className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            fontSize: '13px', background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            color: '#9ca3af',
+          }}
         >
-          <ChatCircle size={16} weight={showComments ? 'fill' : 'regular'} />
+          <ChatCircle size={15} weight={showComments ? 'fill' : 'regular'} />
           <span>{post.post_comments[0]?.count ?? 0}</span>
         </button>
       </div>
 
       {/* Comments */}
       {showComments && (
-        <div className="mt-4 border-t pt-4">
+        <div style={{ marginTop: '12px', borderTop: '1px solid #f3f4f6', paddingTop: '12px' }}>
           {comments.length > 0 ? (
-            <div className="grid gap-3 mb-4">
+            <div style={{ display: 'grid', gap: '10px', marginBottom: '12px' }}>
               {comments.map((comment) => (
                 <div key={comment.id}>
-                  <p className="text-xs font-medium text-gray-600">
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280' }}>
                     @{comment.profiles?.username ?? comment.profiles?.full_name ?? 'Anonymous'}
                   </p>
-                  <p className="text-sm text-gray-800 mt-0.5">{comment.body}</p>
+                  <p style={{ fontSize: '13px', color: '#374151', marginTop: '2px' }}>{comment.body}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400 mb-4">No comments yet.</p>
+            <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '12px' }}>No comments yet.</p>
           )}
 
           {user && (
-            <form onSubmit={handleComment} className="flex gap-2">
+            <form onSubmit={handleComment} style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="text"
                 value={commentBody}
                 onChange={(e) => setCommentBody(e.target.value)}
                 placeholder="Write a comment..."
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-gray-400"
+                style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: '10px', padding: '7px 12px', fontSize: '13px', backgroundColor: '#f9fafb', fontFamily: 'inherit', outline: 'none' }}
               />
               <button
                 type="submit"
                 disabled={loadingComment || !commentBody.trim()}
-                className="bg-gray-900 text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-700 transition disabled:opacity-50"
+                style={{ backgroundColor: '#111827', color: '#ffffff', padding: '7px 14px', borderRadius: '10px', fontSize: '13px', border: 'none', cursor: 'pointer', opacity: loadingComment || !commentBody.trim() ? 0.5 : 1, fontFamily: 'inherit' }}
               >
                 {loadingComment ? '...' : 'Send'}
               </button>
