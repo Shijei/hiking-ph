@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Image, X } from '@phosphor-icons/react'
+import { cleanText } from '@/lib/profanity'
+
 
 interface Props {
   userId: string
@@ -99,9 +101,11 @@ export default function PostForm({ userId }: Props) {
       }
     }
 
+    const cleanedBody = await cleanText(body)
+
     await supabase.from('posts').insert({
       user_id: userId,
-      body,
+      body: cleanedBody,
       mountain_id: selectedMountain?.id ?? null,
       image_url,
     })

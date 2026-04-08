@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Heart, ChatCircle } from '@phosphor-icons/react'
 import Link from 'next/link'
+import { cleanText } from '@/lib/profanity'
+
 
 interface Props {
   post: any
@@ -77,10 +79,14 @@ export default function PostCard({ post, user, liked }: Props) {
     if (!commentBody.trim() || !user) return
     setLoadingComment(true)
     const supabase = createClient()
+
+    const cleanedBody = await cleanText(commentBody)
+
+
     await supabase.from('post_comments').insert({
       post_id: post.id,
       user_id: user.id,
-      body: commentBody,
+      body: cleanedBody,
     })
     setCommentBody('')
     await loadComments()

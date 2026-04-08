@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { cleanText } from '@/lib/profanity'
+
 
 interface Props {
   agencyId: string
@@ -21,11 +23,13 @@ export default function ReviewForm({ agencyId, userId }: Props) {
     setLoading(true)
     setError('')
     const supabase = createClient()
+    const cleanedBody = await cleanText(body)
+
     const { error } = await supabase.from('reviews').insert({
       agency_id: agencyId,
       user_id: userId,
       rating,
-      body,
+      body: cleanedBody,
     })
     if (error) { setError(error.message); setLoading(false); return }
     setBody('')
