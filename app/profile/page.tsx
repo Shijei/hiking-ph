@@ -175,6 +175,16 @@ export default async function ProfilePage() {
           Admin Dashboard →
         </Link>
       )}
+
+      <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+        <Link
+          href="/concern"
+          style={{ fontSize: '13px', color: '#6b7280', textDecoration: 'underline' }}
+        >
+          Send a concern
+        </Link>
+      </div>
+
       <div style={{ textAlign: 'center' }}>
         <SignOutButton />
       </div>
