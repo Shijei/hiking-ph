@@ -17,6 +17,7 @@ export default function SongPlayer({ songUrl, autoplay = false }: Props) {
     if (!audio || !autoplay) return
 
     audio.muted = true
+    audio.volume = 0.35
     audio.play().then(() => {
       setPlaying(true)
     }).catch(() => {

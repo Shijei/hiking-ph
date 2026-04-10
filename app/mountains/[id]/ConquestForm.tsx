@@ -57,7 +57,7 @@ export default function ConquestForm({
     if (!photoFile) return null
     const supabase = createClient()
     const ext = photoFile.name.split('.').pop()
-    const path = `${userId}/${mountainId}.${ext}`
+    const path = `${userId}/${mountainId}-${Date.now()}.${ext}`
     const { error: uploadError } = await supabase.storage
       .from('conquest-photos')
       .upload(path, photoFile, { upsert: true })

@@ -81,7 +81,7 @@ export default function PostForm({ userId }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!body.trim()) return
+    if (!body.trim() && !imageFile) return
     setLoading(true)
     const supabase = createClient()
 
@@ -160,7 +160,6 @@ export default function PostForm({ userId }: Props) {
           autoFocus
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          required
           rows={3}
           placeholder="Share a hiking story, tip, or question..."
           style={{
@@ -246,7 +245,7 @@ export default function PostForm({ userId }: Props) {
 
           <button
             type="submit"
-            disabled={loading || !body.trim()}
+            disabled={loading || (!body.trim() && !imageFile)}
             style={{ backgroundColor: '#111827', color: '#ffffff', padding: '7px 18px', borderRadius: '10px', fontSize: '13px', fontWeight: 500, border: 'none', cursor: 'pointer', opacity: loading || !body.trim() ? 0.5 : 1, fontFamily: 'inherit' }}
           >
             {loading ? 'Posting...' : 'Post'}
