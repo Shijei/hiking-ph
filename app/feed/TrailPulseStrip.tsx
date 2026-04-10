@@ -43,7 +43,7 @@ export default function TrailPulseStrip({ mountains, conqueredIds }: Props) {
           return (
             <Link
               key={mountain.id}
-              href={`/mountains/${mountain.id}`}
+              href={`/mountains/${mountain.id}?from=feed`}
               style={{
                 flexShrink: 0,
                 display: 'flex',
