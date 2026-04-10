@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import PostForm from './feed/PostForm'
 import PostCard from './feed/PostCard'
+import TrailPulseStrip from './feed/TrailPulseStrip'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -28,27 +29,106 @@ export default async function Home() {
 
   const likedPostIds = new Set(userLikes.data?.map((l) => l.post_id))
 
+  // Trail Pulse: mountains with recent post activity (last 7 days)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: recentTaggedPosts } = await supabase
+    .from('posts')
+    .select('mountain_id, mountains(id, name, elevation)')
+    .not('mountain_id', 'is', null)
+    .gte('created_at', sevenDaysAgo)
+
+  // Group by mountain and count posts
+  const mountainActivityMap = new Map<string, { id: string; name: string; elevation: number; postCount: number }>()
+
+  recentTaggedPosts?.forEach((post: any) => {
+    if (!post.mountain_id || !post.mountains) return
+    const existing = mountainActivityMap.get(post.mountain_id)
+    if (existing) {
+      existing.postCount += 1
+    } else {
+      mountainActivityMap.set(post.mountain_id, {
+        id: post.mountains.id,
+        name: post.mountains.name,
+        elevation: post.mountains.elevation,
+        postCount: 1,
+      })
+    }
+  })
+
+  const pulseMountains = Array.from(mountainActivityMap.values())
+    .sort((a, b) => b.postCount - a.postCount)
+    .slice(0, 8)
+
+  // Conquered mountain IDs for current user
+  const conqueredIds = new Set<string>()
+  if (user && pulseMountains.length > 0) {
+    const pulseIds = pulseMountains.map(m => m.id)
+    const { data: conquests } = await supabase
+      .from('conquests')
+      .select('mountain_id')
+      .eq('user_id', user.id)
+      .in('mountain_id', pulseIds)
+    conquests?.forEach(c => conqueredIds.add(c.mountain_id))
+  }
+
   return (
-    <main style={{ padding: '20px 20px' }}>
-      <div style={{ marginBottom: '16px' }}>
+    <main style={{ padding: '20px 16px' }}>
+      <div style={{ marginBottom: '12px' }}>
         <h1 style={{ fontSize: '20px', fontWeight: 600, letterSpacing: '-0.01em' }}>Community Feed</h1>
         <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '2px' }}>Stories, tips, and adventures from fellow hikers.</p>
       </div>
 
-      <div style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#FAF7F2', paddingBottom: '8px' }}>
+      {/* Sticky top area: compose bar + trail pulse */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        backgroundColor: '#FAF7F2',
+        paddingTop: '4px',
+        paddingBottom: '8px',
+      }}>
+        {/* Compose bar or sign-in prompt */}
         {user ? (
-          <PostForm userId={user.id} />
+          <div style={{ marginBottom: '10px' }}>
+            <PostForm userId={user.id} />
+          </div>
         ) : (
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', padding: '20px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-            <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '12px' }}>Sign in to post in the community.</p>
-            <Link href="/login" style={{ backgroundColor: '#111827', color: '#ffffff', padding: '8px 16px', borderRadius: '12px', fontSize: '14px', textDecoration: 'none' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            backgroundColor: '#ffffff',
+            borderRadius: '999px',
+            padding: '10px 16px',
+            marginBottom: '10px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+            border: '1px solid #f0f0f0',
+          }}>
+            <p style={{ fontSize: '13px', color: '#9ca3af', flex: 1 }}>Share a hike, tip, or story...</p>
+            <Link
+              href="/login"
+              style={{
+                fontSize: '12px', fontWeight: 500,
+                backgroundColor: '#111827', color: '#ffffff',
+                padding: '5px 12px', borderRadius: '999px',
+                textDecoration: 'none', flexShrink: 0,
+              }}
+            >
               Sign in
             </Link>
           </div>
         )}
+
+        {/* Trail Pulse */}
+        <TrailPulseStrip
+          mountains={pulseMountains}
+          conqueredIds={conqueredIds}
+        />
       </div>
 
-      <div style={{ display: 'grid', gap: '0', marginTop: '8px' }}>
+      {/* Posts */}
+      <div style={{ display: 'grid', gap: '0', marginTop: '4px' }}>
         {posts && posts.length > 0 ? (
           posts.map((post) => (
             <PostCard key={post.id} post={post} user={user} liked={likedPostIds.has(post.id)} />

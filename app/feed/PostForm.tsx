@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Image, X } from '@phosphor-icons/react'
+import { Image, X, PencilSimple } from '@phosphor-icons/react'
 import { cleanText } from '@/lib/profanity'
-
 
 interface Props {
   userId: string
@@ -119,24 +118,44 @@ export default function PostForm({ userId }: Props) {
     router.refresh()
   }
 
+  // Collapsed: slim single-line compose bar
   if (!expanded) {
     return (
       <div
         onClick={() => setExpanded(true)}
-        style={{ backgroundColor: '#ffffff', borderRadius: '16px', padding: '12px 16px', marginBottom: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', cursor: 'text' }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          backgroundColor: '#ffffff',
+          borderRadius: '999px',
+          padding: '10px 16px',
+          cursor: 'text',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+          border: '1px solid #f0f0f0',
+        }}
       >
-        <p style={{ fontSize: '14px', color: '#9ca3af' }}>Share a hiking story, tip, or question...</p>
+        <PencilSimple size={15} color="#9ca3af" weight="bold" />
+        <p style={{ fontSize: '13px', color: '#9ca3af', flex: 1 }}>
+          Share a hike, tip, or story...
+        </p>
       </div>
     )
   }
 
+  // Expanded: full form
   return (
     <div
       ref={formRef}
-      style={{ backgroundColor: '#ffffff', borderRadius: '16px', padding: '16px', marginBottom: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
+      style={{
+        backgroundColor: '#ffffff',
+        borderRadius: '16px',
+        padding: '16px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        border: '1px solid #f0f0f0',
+      }}
     >
       <form onSubmit={handleSubmit}>
-
         <textarea
           autoFocus
           value={body}
@@ -144,10 +163,13 @@ export default function PostForm({ userId }: Props) {
           required
           rows={3}
           placeholder="Share a hiking story, tip, or question..."
-          style={{ width: '100%', fontSize: '14px', border: 'none', outline: 'none', resize: 'none', marginBottom: '12px', fontFamily: 'inherit', backgroundColor: 'transparent' }}
+          style={{
+            width: '100%', fontSize: '14px', border: 'none', outline: 'none',
+            resize: 'none', marginBottom: '12px', fontFamily: 'inherit',
+            backgroundColor: 'transparent',
+          }}
         />
 
-        {/* Image preview */}
         {imagePreview && (
           <div style={{ position: 'relative', marginBottom: '12px', borderRadius: '10px', overflow: 'hidden', display: 'inline-block' }}>
             <img src={imagePreview} alt="Preview" style={{ maxHeight: '180px', maxWidth: '100%', display: 'block', borderRadius: '10px' }} />
@@ -163,7 +185,6 @@ export default function PostForm({ userId }: Props) {
 
         <div style={{ height: '1px', backgroundColor: '#f3f4f6', marginBottom: '12px' }} />
 
-        {/* Mountain selector */}
         <div style={{ position: 'relative', marginBottom: '12px' }}>
           {selectedMountain ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f3f4f6', borderRadius: '8px', padding: '7px 12px' }}>
@@ -207,28 +228,19 @@ export default function PostForm({ userId }: Props) {
           )}
         </div>
 
-        {/* Actions row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {/* Image upload button */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={!!imageFile}
               style={{ background: 'none', border: 'none', cursor: imageFile ? 'not-allowed' : 'pointer', color: imageFile ? '#d1d5db' : '#9ca3af', padding: 0, display: 'flex', alignItems: 'center' }}
-              title="Attach a photo"
             >
               <Image size={18} weight="regular" />
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              style={{ display: 'none' }}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
             {!selectedMountain && (
-              <p style={{ fontSize: '12px', color: '#9ca3af' }}>Tag the mountain (optional)</p>
+              <p style={{ fontSize: '12px', color: '#9ca3af' }}>Tag a mountain (optional)</p>
             )}
           </div>
 
@@ -240,7 +252,6 @@ export default function PostForm({ userId }: Props) {
             {loading ? 'Posting...' : 'Post'}
           </button>
         </div>
-
       </form>
     </div>
   )
