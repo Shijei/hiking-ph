@@ -165,6 +165,7 @@ export default async function MountainPage({ params, searchParams }: PageProps) 
               mountainName={mountain.name}
               conquered={!!conquest}
               existingPhotoUrl={conquest?.photo_url ?? null}
+              conquestId={conquest?.id ?? null}
             />
           ) : (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>

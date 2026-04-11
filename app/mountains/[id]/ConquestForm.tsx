@@ -12,6 +12,7 @@ interface Props {
   mountainName: string
   conquered: boolean
   existingPhotoUrl: string | null
+  conquestId: string | null
 }
 
 export default function ConquestForm({
@@ -21,7 +22,9 @@ export default function ConquestForm({
   mountainName,
   conquered,
   existingPhotoUrl,
+  conquestId,
 }: Props) {
+  const [currentConquestId, setCurrentConquestId] = useState<string | null>(conquestId)
   const [isConquered, setIsConquered] = useState(conquered)
   const [justConquered, setJustConquered] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -84,9 +87,11 @@ export default function ConquestForm({
       return
     }
 
-    const { error: insertError } = await supabase
+    const { data: inserted, error: insertError } = await supabase
       .from('conquests')
       .insert({ mountain_id: mountainId, user_id: userId, photo_url })
+      .select('id')
+      .single()
 
     if (insertError) {
       setError(`Could not save conquest: ${insertError.message}`)
@@ -94,6 +99,7 @@ export default function ConquestForm({
       return
     }
 
+    setCurrentConquestId(inserted.id) 
     setIsConquered(true)
     setJustConquered(true)
     setCurrentPhoto(photo_url)
@@ -102,7 +108,7 @@ export default function ConquestForm({
   }
 
   const handleUpdatePhoto = async () => {
-    if (!photoFile) return
+    if (!photoFile || !currentConquestId) return
     setLoading(true)
     setError(null)
     const supabase = createClient()
@@ -113,22 +119,22 @@ export default function ConquestForm({
       return
     }
 
-    const { error: updateError } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('conquests')
       .update({ photo_url })
-      .eq('mountain_id', mountainId)
-      .eq('user_id', userId)
+      .eq('id', currentConquestId)  // this is the fix
+      .select('photo_url')
+      .single()
 
-    if (updateError) {
-      setError(`Could not update photo: ${updateError.message}`)
+    if (updateError || !updated) {
+      setError(`Could not update photo: ${updateError?.message ?? 'Update failed'}`)
       setLoading(false)
       return
     }
 
-    setCurrentPhoto(photo_url)
+    setCurrentPhoto(updated.photo_url)
     clearPhoto()
     setLoading(false)
-    router.refresh()
   }
 
   const handleUndo = async () => {
