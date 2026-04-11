@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 export default async function MountainPage({ params, searchParams }: PageProps) {
   const { id } = await params
   const { from } = await searchParams
-
+  
   const backHref = from === 'feed' ? '/' : '/explore/mountains'
 
   const supabase = await createClient()
@@ -182,6 +182,8 @@ export default async function MountainPage({ params, searchParams }: PageProps) 
           )}
         </div>
 
+        console.error('conquest fetch result:', conquest)
+        
         <div style={{ height: '1px', backgroundColor: '#e5e7eb', marginBottom: '16px' }} />
 
         <MountainFeed mountainId={id} />

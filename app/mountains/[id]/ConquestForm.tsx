@@ -119,20 +119,19 @@ export default function ConquestForm({
       return
     }
 
-    const { data: updated, error: updateError } = await supabase
+    const { error: updateError, data: updatedRows } = await supabase
       .from('conquests')
       .update({ photo_url })
-      .eq('id', currentConquestId)  // this is the fix
-      .select('photo_url')
-      .single()
+      .eq('id', currentConquestId)
 
-    if (updateError || !updated) {
-      setError(`Could not update photo: ${updateError?.message ?? 'Update failed'}`)
+    if (updateError) {
+      console.error('Update error:', updateError)
+      setError(`Could not update photo: ${updateError.message}`)
       setLoading(false)
       return
     }
 
-    setCurrentPhoto(updated.photo_url)
+    setCurrentPhoto(photo_url)
     clearPhoto()
     setLoading(false)
   }
