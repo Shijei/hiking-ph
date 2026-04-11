@@ -9,7 +9,7 @@ interface PageProps {
   params: Promise<{ id: string }>
   searchParams: Promise<{ from?: string }>
 }
-
+export const dynamic = 'force-dynamic' 
 export default async function MountainPage({ params, searchParams }: PageProps) {
   const { id } = await params
   const { from } = await searchParams

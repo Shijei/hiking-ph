@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Camera, X, ArrowRight } from '@phosphor-icons/react'
@@ -29,6 +29,9 @@ export default function ConquestForm({
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(existingPhotoUrl)
+  useEffect(() => {
+    setCurrentPhoto(existingPhotoUrl)
+  }, [existingPhotoUrl])
   const [sharingToFeed, setSharingToFeed] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -96,7 +99,6 @@ export default function ConquestForm({
     setCurrentPhoto(photo_url)
     clearPhoto()
     setLoading(false)
-    router.refresh()
   }
 
   const handleUpdatePhoto = async () => {
@@ -160,6 +162,7 @@ export default function ConquestForm({
 
   const handleSkipShare = () => {
     setJustConquered(false)
+    router.refresh()
   }
 
   // --- Share prompt shown immediately after conquering ---
