@@ -181,8 +181,6 @@ export default async function MountainPage({ params, searchParams }: PageProps) 
             </div>
           )}
         </div>
-
-        console.error('conquest fetch result:', conquest)
         
         <div style={{ height: '1px', backgroundColor: '#e5e7eb', marginBottom: '16px' }} />
 

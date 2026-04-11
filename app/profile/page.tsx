@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import SignOutButton from './SignOutButton'
 import SongPlayer from './SongPlayer'
+import ConquestGrid from './ConquestGrid'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -17,7 +18,7 @@ export default async function ProfilePage() {
 
   const { data: conquests } = await supabase
     .from('conquests')
-    .select('*, mountains(*)')
+    .select('id, mountain_id, conquered_at, photo_url, mountains(name, elevation, provinces)')
     .eq('user_id', user.id)
     .order('conquered_at', { ascending: false })
 
@@ -26,14 +27,6 @@ export default async function ProfilePage() {
     .select('*, agencies(*)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-
-  const headerCard = {
-    backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    padding: '16px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-    marginBottom: '8px',
-  }
 
   const statCard = {
     backgroundColor: '#ffffff',
@@ -57,7 +50,16 @@ export default async function ProfilePage() {
     <main style={{ padding: '24px 16px' }}>
 
       {/* Profile Header */}
-      <div style={{ ...headerCard, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+      <div style={{
+        backgroundColor: '#ffffff',
+        borderRadius: '16px',
+        padding: '16px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        marginBottom: '8px',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
           {user.user_metadata.avatar_url && (
             <img
@@ -97,39 +99,11 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      {/* Conquered Mountains */}
-      <p style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '16px 0 4px' }}>
+      {/* Conquered Mountains — photo grid */}
+      <p style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '16px 0 8px' }}>
         Conquered Mountains
       </p>
-      {conquests && conquests.length > 0 ? (
-        <div style={{ marginBottom: '16px' }}>
-          {conquests.map((conquest) => (
-            <Link
-              key={conquest.id}
-              href={`/mountains/${conquest.mountain_id}`}
-              style={row as any}
-            >
-              <div>
-                <p style={{ fontSize: '14px', fontWeight: 500 }}>{conquest.mountains.name}</p>
-                <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>{conquest.mountains.provinces?.join(', ')}</p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '14px', fontWeight: 500 }}>{conquest.mountains.elevation}m</p>
-                <p style={{ fontSize: '12px', color: '#9ca3af' }}>
-                  {new Date(conquest.conquered_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div style={{ padding: '16px 0', marginBottom: '16px' }}>
-          <p style={{ fontSize: '14px', color: '#9ca3af' }}>No mountains conquered yet.</p>
-          <Link href="/explore/mountains" style={{ fontSize: '13px', color: '#111827', textDecoration: 'underline', display: 'inline-block', marginTop: '4px' }}>
-            Start exploring!
-          </Link>
-        </div>
-      )}
+      <ConquestGrid conquests={(conquests as any) ?? []} userId={user.id} />
 
       {/* Reviews Written */}
       <p style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '16px 0 4px' }}>
@@ -156,7 +130,7 @@ export default async function ProfilePage() {
           <p style={{ fontSize: '14px', color: '#9ca3af' }}>No reviews written yet.</p>
         </div>
       )}
-      {/* Agency Application */}
+
       {profile?.role === 'hiker' && (
         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
           <Link
@@ -177,10 +151,7 @@ export default async function ProfilePage() {
       )}
 
       <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-        <Link
-          href="/concern"
-          style={{ fontSize: '13px', color: '#6b7280', textDecoration: 'underline' }}
-        >
+        <Link href="/concern" style={{ fontSize: '13px', color: '#6b7280', textDecoration: 'underline' }}>
           Send a concern
         </Link>
       </div>

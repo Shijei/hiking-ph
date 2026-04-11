@@ -32,17 +32,18 @@ export default function ConquestForm({
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(existingPhotoUrl)
+  const [sharingToFeed, setSharingToFeed] = useState(false)
+
   useEffect(() => {
     setCurrentPhoto(existingPhotoUrl)
   }, [existingPhotoUrl])
-  const [sharingToFeed, setSharingToFeed] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const updateInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   const displayName = mountainName.replace(/^Mount\s+/i, 'Mt. ')
-  const defaultShareText = `@${username} conquered ${displayName} 💪`
+  const defaultShareText = `@${username} conquered ${displayName}`
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -99,7 +100,7 @@ export default function ConquestForm({
       return
     }
 
-    setCurrentConquestId(inserted.id) 
+    setCurrentConquestId(inserted.id)
     setIsConquered(true)
     setJustConquered(true)
     setCurrentPhoto(photo_url)
@@ -119,7 +120,7 @@ export default function ConquestForm({
       return
     }
 
-    const { error: updateError, data: updatedRows } = await supabase
+    const { error: updateError } = await supabase
       .from('conquests')
       .update({ photo_url })
       .eq('id', currentConquestId)
@@ -159,6 +160,7 @@ export default function ConquestForm({
       body: defaultShareText,
       mountain_id: mountainId,
       image_url: currentPhoto ?? null,
+      is_conquest: true,
     })
     setSharingToFeed(false)
     setJustConquered(false)
@@ -170,7 +172,6 @@ export default function ConquestForm({
     router.refresh()
   }
 
-  // --- Share prompt shown immediately after conquering ---
   if (justConquered) {
     return (
       <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '14px', padding: '16px' }}>
@@ -238,7 +239,6 @@ export default function ConquestForm({
     )
   }
 
-  // --- Already conquered state ---
   if (isConquered) {
     return (
       <div>
@@ -304,7 +304,6 @@ export default function ConquestForm({
     )
   }
 
-  // --- Not yet conquered state ---
   return (
     <div>
       {!photoPreview ? (

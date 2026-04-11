@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import SongPlayer from '../SongPlayer'
+import ConquestGrid from '../ConquestGrid'
 
 interface PageProps {
   params: Promise<{ username: string }>
@@ -21,7 +22,6 @@ export default async function PublicProfilePage({ params }: PageProps) {
 
   if (error || !profile) return notFound()
 
-  // If viewing your own profile redirect to /profile
   if (currentUser?.id === profile.id) {
     const { redirect } = await import('next/navigation')
     redirect('/profile')
@@ -29,7 +29,7 @@ export default async function PublicProfilePage({ params }: PageProps) {
 
   const { data: conquests } = await supabase
     .from('conquests')
-    .select('*, mountains(*)')
+    .select('id, mountain_id, conquered_at, photo_url, mountains(name, elevation, provinces)')
     .eq('user_id', profile.id)
     .order('conquered_at', { ascending: false })
 
@@ -38,14 +38,6 @@ export default async function PublicProfilePage({ params }: PageProps) {
     .select('*, agencies(*)')
     .eq('user_id', profile.id)
     .order('created_at', { ascending: false })
-
-  const headerCard = {
-    backgroundColor: '#ffffff',
-    borderRadius: '16px',
-    padding: '16px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-    marginBottom: '8px',
-  }
 
   const statCard = {
     backgroundColor: '#ffffff',
@@ -73,7 +65,16 @@ export default async function PublicProfilePage({ params }: PageProps) {
       </Link>
 
       {/* Profile Header */}
-      <div style={{ ...headerCard, display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{
+        backgroundColor: '#ffffff',
+        borderRadius: '16px',
+        padding: '16px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        marginBottom: '8px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+      }}>
         {profile.avatar_url && (
           <img
             src={profile.avatar_url}
@@ -89,7 +90,6 @@ export default async function PublicProfilePage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Song */}
       {profile.song_url && (
         <div style={{ marginBottom: '8px' }}>
           <SongPlayer songUrl={profile.song_url} autoplay={true} />
@@ -108,40 +108,11 @@ export default async function PublicProfilePage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Conquered Mountains */}
-      <p style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '16px 0 4px' }}>
+      {/* Conquered Mountains — photo grid */}
+      <p style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '16px 0 8px' }}>
         Conquered Mountains
       </p>
-      {conquests && conquests.length > 0 ? (
-        <div style={{ marginBottom: '16px' }}>
-          {conquests.map((conquest) => (
-            <Link
-              key={conquest.id}
-              href={`/mountains/${conquest.mountain_id}`}
-              style={row as any}
-            >
-              <div>
-                <p style={{ fontSize: '14px', fontWeight: 500 }}>{conquest.mountains.name}</p>
-                <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
-                  {conquest.mountains.provinces?.join(', ')}
-                </p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '14px', fontWeight: 500 }}>{conquest.mountains.elevation}m</p>
-                <p style={{ fontSize: '12px', color: '#9ca3af' }}>
-                  {new Date(conquest.conquered_at).toLocaleDateString('en-PH', {
-                    month: 'short', day: 'numeric', year: 'numeric'
-                  })}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div style={{ padding: '16px 0', marginBottom: '16px' }}>
-          <p style={{ fontSize: '14px', color: '#9ca3af' }}>No mountains conquered yet.</p>
-        </div>
-      )}
+      <ConquestGrid conquests={(conquests as any) ?? []} userId={profile.id} />
 
       {/* Reviews Written */}
       <p style={{ fontSize: '11px', fontWeight: 600, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '16px 0 4px' }}>

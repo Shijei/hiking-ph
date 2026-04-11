@@ -3,10 +3,9 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Heart, ChatCircle } from '@phosphor-icons/react'
+import { Heart, ChatCircle, Mountains } from '@phosphor-icons/react'
 import Link from 'next/link'
 import { cleanText } from '@/lib/profanity'
-
 
 interface Props {
   post: any
@@ -82,7 +81,6 @@ export default function PostCard({ post, user, liked }: Props) {
 
     const cleanedBody = await cleanText(commentBody)
 
-
     await supabase.from('post_comments').insert({
       post_id: post.id,
       user_id: user.id,
@@ -94,10 +92,12 @@ export default function PostCard({ post, user, liked }: Props) {
     router.refresh()
   }
 
+  const mountainName = post.mountains?.name?.replace(/^Mount\s+/i, 'Mt. ')
+
   return (
     <div style={{ paddingTop: '14px', paddingBottom: '14px', borderBottom: '1px solid #f3f4f6' }}>
 
-      {/* Author row — compact */}
+      {/* Author row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         {post.profiles?.avatar_url && (
           <img
@@ -120,10 +120,51 @@ export default function PostCard({ post, user, liked }: Props) {
         </div>
       </div>
 
-      {/* Body */}
-      <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.6, marginBottom: '8px' }}>
-        {post.body}
-      </p>
+      {/* Conquest card — replaces body text for conquest posts */}
+      {post.is_conquest ? (
+        <Link
+          href={post.mountains ? `/mountains/${post.mountain_id}` : '#'}
+          style={{ display: 'block', textDecoration: 'none', marginBottom: '8px' }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            backgroundColor: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: '10px',
+            padding: '10px 12px',
+          }}>
+            <Mountains size={20} color="#16a34a" weight="duotone" />
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#15803d' }}>
+                Conquered {mountainName ?? 'a mountain'}
+              </p>
+              {post.mountains?.elevation && (
+                <p style={{ fontSize: '11px', color: '#4ade80', marginTop: '1px' }}>
+                  {post.mountains.elevation}m
+                </p>
+              )}
+            </div>
+            <span style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              backgroundColor: '#dcfce7',
+              color: '#16a34a',
+              padding: '2px 8px',
+              borderRadius: '20px',
+              letterSpacing: '0.04em',
+              flexShrink: 0,
+            }}>
+              SUMMIT
+            </span>
+          </div>
+        </Link>
+      ) : (
+        <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.6, marginBottom: '8px' }}>
+          {post.body}
+        </p>
+      )}
 
       {/* Image */}
       {post.image_url && (
@@ -136,11 +177,11 @@ export default function PostCard({ post, user, liked }: Props) {
         </div>
       )}
 
-      {/* Mountain tag */}
-      {post.mountains && (
+      {/* Mountain tag — only for non-conquest posts */}
+      {!post.is_conquest && post.mountains && (
         <div style={{ marginBottom: '10px' }}>
           <span style={{ fontSize: '11px', backgroundColor: '#f3f4f6', color: '#6b7280', padding: '3px 8px', borderRadius: '6px', fontWeight: 500 }}>
-            {post.mountains.name} · {post.mountains.elevation}m
+            {mountainName} · {post.mountains.elevation}m
           </span>
         </div>
       )}
