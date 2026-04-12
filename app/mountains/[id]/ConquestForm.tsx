@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Camera, X, ArrowRight } from '@phosphor-icons/react'
+import { cleanText } from '@/lib/profanity'
 
 interface Props {
   mountainId: string
@@ -33,6 +34,7 @@ export default function ConquestForm({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [currentPhoto, setCurrentPhoto] = useState<string | null>(existingPhotoUrl)
   const [sharingToFeed, setSharingToFeed] = useState(false)
+  const [caption, setCaption] = useState('')
 
   useEffect(() => {
     setCurrentPhoto(existingPhotoUrl)
@@ -43,7 +45,6 @@ export default function ConquestForm({
   const router = useRouter()
 
   const displayName = mountainName.replace(/^Mount\s+/i, 'Mt. ')
-  const defaultShareText = `@${username} conquered ${displayName}`
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -126,7 +127,6 @@ export default function ConquestForm({
       .eq('id', currentConquestId)
 
     if (updateError) {
-      console.error('Update error:', updateError)
       setError(`Could not update photo: ${updateError.message}`)
       setLoading(false)
       return
@@ -155,15 +155,20 @@ export default function ConquestForm({
   const handleShareToFeed = async () => {
     setSharingToFeed(true)
     const supabase = createClient()
+
+    // Store the user's custom caption if provided, otherwise null
+    const cleanedCaption = caption.trim() ? await cleanText(caption.trim()) : null
+
     await supabase.from('posts').insert({
       user_id: userId,
-      body: defaultShareText,
+      body: cleanedCaption,
       mountain_id: mountainId,
       image_url: currentPhoto ?? null,
       is_conquest: true,
     })
     setSharingToFeed(false)
     setJustConquered(false)
+    setCaption('')
     router.refresh()
   }
 
@@ -178,20 +183,38 @@ export default function ConquestForm({
         <p style={{ fontSize: '14px', fontWeight: 600, color: '#15803d', marginBottom: '4px' }}>
           Conquest logged!
         </p>
-        <p style={{ fontSize: '13px', color: '#166534', marginBottom: '14px' }}>
+        <p style={{ fontSize: '13px', color: '#166534', marginBottom: '12px' }}>
           Share this to the community feed?
         </p>
 
-        <div style={{ backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: '10px', padding: '10px 12px', marginBottom: '14px' }}>
-          <p style={{ fontSize: '13px', color: '#374151' }}>{defaultShareText}</p>
-          {currentPhoto && (
-            <img
-              src={currentPhoto}
-              alt=""
-              style={{ width: '100%', borderRadius: '8px', marginTop: '8px', maxHeight: '140px', objectFit: 'cover', display: 'block' }}
-            />
-          )}
-        </div>
+        {currentPhoto && (
+          <img
+            src={currentPhoto}
+            alt=""
+            style={{ width: '100%', borderRadius: '8px', marginBottom: '12px', maxHeight: '140px', objectFit: 'cover', display: 'block' }}
+          />
+        )}
+
+        {/* Optional caption */}
+        <textarea
+          value={caption}
+          onChange={(e) => setCaption(e.target.value)}
+          placeholder={`Add a caption... (optional)`}
+          rows={2}
+          style={{
+            width: '100%',
+            fontSize: '13px',
+            padding: '9px 12px',
+            border: '1px solid #bbf7d0',
+            borderRadius: '10px',
+            backgroundColor: 'rgba(255,255,255,0.7)',
+            fontFamily: 'inherit',
+            resize: 'none',
+            outline: 'none',
+            marginBottom: '12px',
+            color: '#374151',
+          }}
+        />
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
