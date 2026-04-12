@@ -5,10 +5,13 @@ import PostCard from '@/app/feed/PostCard'
 
 interface PageProps {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ from?: string }>
 }
 
-export default async function PostDetailPage({ params }: PageProps) {
+export default async function PostDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params
+  const { from } = await searchParams
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -37,9 +40,12 @@ export default async function PostDetailPage({ params }: PageProps) {
 
   const liked = !!userLike.data
 
-  const backHref = post.mountains
-    ? `/mountains/${post.mountain_id}`
-    : '/'
+  // Respect the source: feed link passes ?from=feed, mountain page has no param
+  const backHref = from === 'feed'
+    ? '/'
+    : post.mountain_id
+      ? `/mountains/${post.mountain_id}`
+      : '/'
 
   return (
     <main style={{ padding: '24px 16px' }}>
@@ -50,7 +56,7 @@ export default async function PostDetailPage({ params }: PageProps) {
         ← Back
       </Link>
 
-      <PostCard post={post} user={user} liked={liked} />
+      <PostCard post={post} user={user} liked={liked} isDetail={true} />
     </main>
   )
 }
