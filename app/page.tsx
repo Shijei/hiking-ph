@@ -3,6 +3,7 @@ import Link from 'next/link'
 import PostForm from './feed/PostForm'
 import PostCard from './feed/PostCard'
 import TrailPulseStrip from './feed/TrailPulseStrip'
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -74,9 +75,27 @@ export default async function Home() {
 
   return (
     <main style={{ padding: '20px 16px' }}>
-      <div style={{ marginBottom: '12px' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 600, letterSpacing: '-0.01em' }}>Community Feed</h1>
-        <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '2px' }}>Stories, tips, and adventures from fellow hikers.</p>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div>
+          <h1 style={{ fontSize: '20px', fontWeight: 600, letterSpacing: '-0.01em' }}>Community Feed</h1>
+          <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '2px' }}>Stories, tips, and adventures from fellow hikers.</p>
+        </div>
+        <Link
+          href="/search"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: '36px', height: '36px',
+            backgroundColor: '#ffffff',
+            border: '1px solid #e5e7eb',
+            borderRadius: '10px',
+            flexShrink: 0,
+            marginTop: '2px',
+          }}
+        >
+          <MagnifyingGlass size={17} color="#6b7280" weight="bold" />
+        </Link>
       </div>
 
       {/* Sticky top area: compose bar + trail pulse */}
@@ -88,7 +107,6 @@ export default async function Home() {
         paddingTop: '4px',
         paddingBottom: '8px',
       }}>
-        {/* Compose bar or sign-in prompt */}
         {user ? (
           <div style={{ marginBottom: '10px' }}>
             <PostForm userId={user.id} />
@@ -120,11 +138,7 @@ export default async function Home() {
           </div>
         )}
 
-        {/* Trail Pulse */}
-        <TrailPulseStrip
-          mountains={pulseMountains}
-          conqueredIds={conqueredIds}
-        />
+        <TrailPulseStrip mountains={pulseMountains} conqueredIds={conqueredIds} />
       </div>
 
       {/* Posts */}
