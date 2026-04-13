@@ -31,6 +31,35 @@ export default function ReviewForm({ agencyId, userId }: Props) {
       rating,
       body: cleanedBody,
     })
+
+    // notify agency owner — throttled to 1 per 24h
+    const { data: agencyData } = await supabase
+      .from('agencies')
+      .select('owner_id')
+      .eq('id', agencyId)
+      .single()
+
+    if (agencyData?.owner_id && agencyData.owner_id !== userId) {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const { count: recentCount } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', agencyData.owner_id)
+        .eq('type', 'review')
+        .eq('reference_id', agencyId)
+        .gte('created_at', oneDayAgo)
+
+      if (!recentCount) {
+        void supabase.from('notifications').insert({
+          user_id: agencyData.owner_id,
+          actor_id: userId,
+          type: 'review',
+          reference_id: agencyId,
+          message: 'reviewed your agency',
+        })
+      }
+    }
+
     if (error) { setError(error.message); setLoading(false); return }
     setBody('')
     setRating(5)

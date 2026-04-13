@@ -4,6 +4,8 @@ import PostForm from './feed/PostForm'
 import PostCard from './feed/PostCard'
 import TrailPulseStrip from './feed/TrailPulseStrip'
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr'
+import NotificationBell from '@/components/NotificationBell'
+import WeeklyDigestChecker from './feed/WeeklyDigestChecker'
 
 export default async function Home() {
   const supabase = await createClient()
@@ -82,21 +84,25 @@ export default async function Home() {
           <h1 style={{ fontSize: '20px', fontWeight: 600, letterSpacing: '-0.01em' }}>Community Feed</h1>
           <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '2px' }}>Stories, tips, and adventures from fellow hikers.</p>
         </div>
-        <Link
-          href="/search"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '36px', height: '36px',
-            backgroundColor: '#ffffff',
-            border: '1px solid #e5e7eb',
-            borderRadius: '10px',
-            flexShrink: 0,
-            marginTop: '2px',
-          }}
-        >
-          <MagnifyingGlass size={17} color="#6b7280" weight="bold" />
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+          {user && <NotificationBell userId={user.id} />}
+          <Link
+            href="/search"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '36px', height: '36px',
+              backgroundColor: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '10px',
+              flexShrink: 0,
+            }}
+          >
+            <MagnifyingGlass size={17} color="#6b7280" weight="bold" />
+          </Link>
+        </div>
       </div>
+
+      {user && <WeeklyDigestChecker userId={user.id} />}
 
       {/* Sticky top area: compose bar + trail pulse */}
       <div style={{

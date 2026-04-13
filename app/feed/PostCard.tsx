@@ -78,6 +78,16 @@ export default function PostCard({ post, user, liked, isDetail = false }: Props)
       await supabase.from('post_likes').insert({ post_id: post.id, user_id: user.id })
       setIsLiked(true)
       setLikeCount((c: number) => c + 1)
+      // fire-and-forget notification
+      if (post.user_id !== user.id) {
+        void supabase.from('notifications').insert({
+          user_id: post.user_id,
+          actor_id: user.id,
+          type: 'like',
+          reference_id: post.id,
+          message: 'liked your post',
+        })
+      }
     }
     setLoadingLike(false)
   }
@@ -98,6 +108,16 @@ export default function PostCard({ post, user, liked, isDetail = false }: Props)
       user_id: user.id,
       body: cleanedBody,
     })
+    // fire-and-forget notification
+    if (post.user_id !== user.id) {
+      void supabase.from('notifications').insert({
+        user_id: post.user_id,
+        actor_id: user.id,
+        type: 'comment',
+        reference_id: post.id,
+        message: 'commented on your post',
+      })
+    }
     setCommentBody('')
     await loadComments()
     setLoadingComment(false)
