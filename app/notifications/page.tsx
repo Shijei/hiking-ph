@@ -11,7 +11,7 @@ interface PostContext {
   body: string | null
   image_url: string | null
   mountain_id: string | null
-  mountains: { name: string } | null
+  mountains: { name: string } | { name: string }[] | null
 }
 
 interface Notification {
@@ -58,8 +58,14 @@ function NotifTypeIcon({ type }: { type: string }) {
   }
 }
 
+function getMountainName(mountains: PostContext['mountains']): string | null {
+  if (!mountains) return null
+  const raw = Array.isArray(mountains) ? mountains[0]?.name : (mountains as { name: string }).name
+  return raw ? raw.replace(/^Mount\s+/i, 'Mt. ') : null
+}
+
 function PostSnippet({ post }: { post: PostContext }) {
-  const mountainName = post.mountains?.name?.replace(/^Mount\s+/i, 'Mt. ')
+  const mountainName = getMountainName(post.mountains)
 
   // Priority 1: has body text
   if (post.body && post.body.trim()) {
@@ -120,7 +126,7 @@ function buildMessage(type: string, message: string, post?: PostContext) {
 
   if (!post) return message
 
-  const mountainName = post.mountains?.name?.replace(/^Mount\s+/i, 'Mt. ')
+  const mountainName = getMountainName(post.mountains)
 
   if (post.body && post.body.trim()) return message
   if (mountainName) return `${type === 'like' ? 'liked' : 'commented on'} your post on ${mountainName}`
