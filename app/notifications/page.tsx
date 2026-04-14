@@ -6,6 +6,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Bell, Heart, ChatCircle, Star, Mountains } from '@phosphor-icons/react'
 
+interface PostContext {
+  id: string
+  body: string | null
+  image_url: string | null
+  mountain_id: string | null
+  mountains: { name: string } | null
+}
+
 interface Notification {
   id: string
   actor_id: string | null
@@ -15,6 +23,7 @@ interface Notification {
   read: boolean
   created_at: string
   actor?: { username: string; avatar_url: string | null }
+  postContext?: PostContext
 }
 
 function getRelativeTime(dateStr: string) {
@@ -49,6 +58,77 @@ function NotifTypeIcon({ type }: { type: string }) {
   }
 }
 
+function PostSnippet({ post }: { post: PostContext }) {
+  const mountainName = post.mountains?.name?.replace(/^Mount\s+/i, 'Mt. ')
+
+  // Priority 1: has body text
+  if (post.body && post.body.trim()) {
+    const truncated = post.body.trim().length > 50
+      ? post.body.trim().slice(0, 50) + '...'
+      : post.body.trim()
+    return (
+      <p style={{
+        fontSize: '12px',
+        color: '#9ca3af',
+        marginTop: '3px',
+        fontStyle: 'italic',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+        textOverflow: 'ellipsis',
+        maxWidth: '220px',
+      }}>
+        &ldquo;{truncated}&rdquo;
+      </p>
+    )
+  }
+
+  // Priority 2: no text but has mountain tag
+  if (mountainName) {
+    return (
+      <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '3px' }}>
+        post on {mountainName}
+      </p>
+    )
+  }
+
+  // Priority 3: no text, no mountain, but has image
+  if (post.image_url) {
+    return (
+      <div style={{ marginTop: '4px' }}>
+        <img
+          src={post.image_url}
+          alt="post"
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '6px',
+            objectFit: 'cover',
+            display: 'block',
+            filter: 'blur(2px)',
+            opacity: 0.75,
+          }}
+        />
+      </div>
+    )
+  }
+
+  return null
+}
+
+function buildMessage(type: string, message: string, post?: PostContext) {
+  if (type !== 'like' && type !== 'comment') return message
+
+  if (!post) return message
+
+  const mountainName = post.mountains?.name?.replace(/^Mount\s+/i, 'Mt. ')
+
+  if (post.body && post.body.trim()) return message
+  if (mountainName) return `${type === 'like' ? 'liked' : 'commented on'} your post on ${mountainName}`
+  if (post.image_url) return `${type === 'like' ? 'liked' : 'commented on'} your photo`
+
+  return message
+}
+
 function getHref(type: string, referenceId: string) {
   if (type === 'like' || type === 'comment') return `/posts/${referenceId}`
   if (type === 'review') return `/agencies/${referenceId}`
@@ -76,6 +156,7 @@ export default function NotificationsPage() {
 
       if (!notifs?.length) { setLoading(false); return }
 
+      // Batch fetch actor profiles
       const actorIds = [...new Set(
         notifs.filter(n => n.actor_id).map(n => n.actor_id as string)
       )]
@@ -91,9 +172,29 @@ export default function NotificationsPage() {
         )
       }
 
+      // Batch fetch post context for like/comment notifications
+      const postRefIds = notifs
+        .filter(n => n.type === 'like' || n.type === 'comment')
+        .map(n => n.reference_id)
+
+      let postMap: Record<string, PostContext> = {}
+      if (postRefIds.length > 0) {
+        const { data: posts } = await supabase
+          .from('posts')
+          .select('id, body, image_url, mountain_id, mountains(name)')
+          .in('id', postRefIds)
+
+        postMap = Object.fromEntries(
+          (posts ?? []).map(p => [p.id, p as PostContext])
+        )
+      }
+
       const enriched = notifs.map(n => ({
         ...n,
         actor: n.actor_id ? actorMap[n.actor_id] : undefined,
+        postContext: (n.type === 'like' || n.type === 'comment')
+          ? postMap[n.reference_id]
+          : undefined,
       }))
 
       setNotifications(enriched)
@@ -122,6 +223,7 @@ export default function NotificationsPage() {
               <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#f3f4f6', flexShrink: 0 }} />
               <div>
                 <div style={{ width: '200px', height: '13px', backgroundColor: '#f3f4f6', borderRadius: '6px', marginBottom: '6px' }} />
+                <div style={{ width: '120px', height: '11px', backgroundColor: '#f3f4f6', borderRadius: '4px', marginBottom: '4px' }} />
                 <div style={{ width: '70px', height: '11px', backgroundColor: '#f3f4f6', borderRadius: '4px' }} />
               </div>
             </div>
@@ -149,6 +251,7 @@ export default function NotificationsPage() {
                 opacity: notif.read ? 0.55 : 1,
               }}
             >
+              {/* Avatar + type icon */}
               <div style={{ position: 'relative', flexShrink: 0 }}>
                 {notif.actor?.avatar_url ? (
                   <img
@@ -174,17 +277,40 @@ export default function NotificationsPage() {
                 </div>
               </div>
 
+              {/* Text + snippet */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: '13px', color: '#111827', lineHeight: 1.5 }}>
                   {notif.actor && (
                     <span style={{ fontWeight: 600 }}>@{notif.actor.username} </span>
                   )}
-                  {notif.message}
+                  {buildMessage(notif.type, notif.message, notif.postContext)}
                 </p>
+
+                {notif.postContext && (notif.postContext.body?.trim()) && (
+                  <PostSnippet post={notif.postContext} />
+                )}
+
                 <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '3px' }}>
                   {getRelativeTime(notif.created_at)}
                 </p>
               </div>
+
+              {/* Post image thumbnail — shown on the right if image exists and no body text */}
+              {notif.postContext?.image_url && !notif.postContext.body?.trim() && (
+                <img
+                  src={notif.postContext.image_url}
+                  alt=""
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '8px',
+                    objectFit: 'cover',
+                    flexShrink: 0,
+                    filter: 'blur(3px)',
+                    opacity: 0.8,
+                  }}
+                />
+              )}
 
               {!notif.read && (
                 <div style={{
