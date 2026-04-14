@@ -58,7 +58,6 @@ export default function PostCard({ post, user, liked, isDetail = false }: Props)
     setComments(data ?? [])
   }, [post.id])
 
-  // Auto-load when rendered in detail view
   useEffect(() => {
     if (isDetail) {
       loadComments()
@@ -78,15 +77,18 @@ export default function PostCard({ post, user, liked, isDetail = false }: Props)
       await supabase.from('post_likes').insert({ post_id: post.id, user_id: user.id })
       setIsLiked(true)
       setLikeCount((c: number) => c + 1)
-      // fire-and-forget notification
+
       if (post.user_id !== user.id) {
-        void supabase.from('notifications').insert({
+        const { error: notifError } = await supabase.from('notifications').insert({
           user_id: post.user_id,
           actor_id: user.id,
           type: 'like',
           reference_id: post.id,
           message: 'liked your post',
         })
+        if (notifError) {
+          console.error('like notification failed:', notifError.message, notifError.code)
+        }
       }
     }
     setLoadingLike(false)
@@ -103,21 +105,26 @@ export default function PostCard({ post, user, liked, isDetail = false }: Props)
     setLoadingComment(true)
     const supabase = createClient()
     const cleanedBody = await cleanText(commentBody)
+
     await supabase.from('post_comments').insert({
       post_id: post.id,
       user_id: user.id,
       body: cleanedBody,
     })
-    // fire-and-forget notification
+
     if (post.user_id !== user.id) {
-      void supabase.from('notifications').insert({
+      const { error: notifError } = await supabase.from('notifications').insert({
         user_id: post.user_id,
         actor_id: user.id,
         type: 'comment',
         reference_id: post.id,
         message: 'commented on your post',
       })
+      if (notifError) {
+        console.error('comment notification failed:', notifError.message, notifError.code)
+      }
     }
+
     setCommentBody('')
     await loadComments()
     setLoadingComment(false)
@@ -178,11 +185,6 @@ export default function PostCard({ post, user, liked, isDetail = false }: Props)
         </p>
       )}
 
-      {/* Image
-          Feed: full natural dimensions (no crop), wrapped in Link to post detail.
-               ?from=feed tells the detail page to send Back → feed.
-          Detail: same natural dimensions, not a link.
-      */}
       {post.image_url && (
         <div style={{ marginBottom: '10px', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#f3f4f6' }}>
           {isDetail ? (

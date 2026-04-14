@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { cleanText } from '@/lib/profanity'
 
-
 interface Props {
   agencyId: string
   userId: string
@@ -25,23 +24,32 @@ export default function ReviewForm({ agencyId, userId }: Props) {
     const supabase = createClient()
     const cleanedBody = await cleanText(body)
 
-    const { error } = await supabase.from('reviews').insert({
+    const { error: reviewError } = await supabase.from('reviews').insert({
       agency_id: agencyId,
       user_id: userId,
       rating,
       body: cleanedBody,
     })
 
-    // notify agency owner — throttled to 1 per 24h
-    const { data: agencyData } = await supabase
+    if (reviewError) {
+      setError(reviewError.message)
+      setLoading(false)
+      return
+    }
+
+    const { data: agencyData, error: agencyError } = await supabase
       .from('agencies')
       .select('owner_id')
       .eq('id', agencyId)
       .single()
 
+    if (agencyError) {
+      console.error('failed to fetch agency owner:', agencyError.message)
+    }
+
     if (agencyData?.owner_id && agencyData.owner_id !== userId) {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-      const { count: recentCount } = await supabase
+      const { count: recentCount, error: countError } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', agencyData.owner_id)
@@ -49,18 +57,24 @@ export default function ReviewForm({ agencyId, userId }: Props) {
         .eq('reference_id', agencyId)
         .gte('created_at', oneDayAgo)
 
+      if (countError) {
+        console.error('failed to check recent notifications:', countError.message)
+      }
+
       if (!recentCount) {
-        void supabase.from('notifications').insert({
+        const { error: notifError } = await supabase.from('notifications').insert({
           user_id: agencyData.owner_id,
           actor_id: userId,
           type: 'review',
           reference_id: agencyId,
           message: 'reviewed your agency',
         })
+        if (notifError) {
+          console.error('review notification failed:', notifError.message, notifError.code)
+        }
       }
     }
 
-    if (error) { setError(error.message); setLoading(false); return }
     setBody('')
     setRating(5)
     setLoading(false)
