@@ -1,24 +1,32 @@
 'use client'
 
-import { useMemo, useState, useEffect, useRef } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { X, ArrowRight, Mountains } from '@phosphor-icons/react'
 import Link from 'next/link'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+// ── Types ──────────────────────────────────────────────────────────────────────
+
 interface Mountain {
   id: string
   name: string
   elevation: number
   provinces: string[]
-  coordinates?: unknown
 }
 
-interface ProvinceData {
-  name: string
-  islandGroup: 'Luzon' | 'Visayas' | 'Mindanao'
-  pathData: string
+type IslandGroup = 'Luzon' | 'Visayas' | 'Mindanao'
+
+interface GeoFeature {
+  type: 'Feature'
+  properties: Record<string, string>
+  geometry: {
+    type: 'Polygon' | 'MultiPolygon'
+    coordinates: number[][][] | number[][][][]
+  }
+}
+
+interface GeoCollection {
+  type: 'FeatureCollection'
+  features: GeoFeature[]
 }
 
 interface ProvinceStats {
@@ -35,73 +43,130 @@ interface Props {
   conqueredIds: Set<string>
 }
 
-// ---------------------------------------------------------------------------
-// Province path data — loaded from public/data/provinces.json at runtime.
-// ---------------------------------------------------------------------------
-let provinceCache: ProvinceData[] | null = null
+// ── Island group mapping ───────────────────────────────────────────────────────
+const ISLAND_GROUPS: Record<string, IslandGroup> = {
+  Abra: 'Luzon', Apayao: 'Luzon', Aurora: 'Luzon', Bataan: 'Luzon', Batanes: 'Luzon',
+  Batangas: 'Luzon', Benguet: 'Luzon', Bulacan: 'Luzon', Cagayan: 'Luzon',
+  'Camarines Norte': 'Luzon', 'Camarines Sur': 'Luzon', Catanduanes: 'Luzon',
+  Cavite: 'Luzon', Ifugao: 'Luzon', 'Ilocos Norte': 'Luzon', 'Ilocos Sur': 'Luzon',
+  Isabela: 'Luzon', Kalinga: 'Luzon', 'La Union': 'Luzon', Laguna: 'Luzon',
+  Marinduque: 'Luzon', Masbate: 'Luzon', 'Metro Manila': 'Luzon',
+  'Mountain Province': 'Luzon', 'Nueva Ecija': 'Luzon', 'Nueva Vizcaya': 'Luzon',
+  'Occidental Mindoro': 'Luzon', 'Oriental Mindoro': 'Luzon', Palawan: 'Luzon',
+  Pampanga: 'Luzon', Pangasinan: 'Luzon', Quezon: 'Luzon', Quirino: 'Luzon',
+  Rizal: 'Luzon', Romblon: 'Luzon', Sorsogon: 'Luzon', Tarlac: 'Luzon',
+  Zambales: 'Luzon', Albay: 'Luzon',
 
-async function loadProvinces(): Promise<ProvinceData[]> {
-  if (provinceCache) return provinceCache
-  try {
-    const res = await fetch('/data/provinces.json')
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    provinceCache = await res.json()
-    return provinceCache!
-  } catch {
-    return []
-  }
+  Aklan: 'Visayas', Antique: 'Visayas', Biliran: 'Visayas', Bohol: 'Visayas',
+  Capiz: 'Visayas', Cebu: 'Visayas', 'Eastern Samar': 'Visayas', Guimaras: 'Visayas',
+  Iloilo: 'Visayas', Leyte: 'Visayas', 'Negros Occidental': 'Visayas',
+  'Negros Oriental': 'Visayas', 'Northern Samar': 'Visayas', Samar: 'Visayas',
+  Siquijor: 'Visayas', 'Southern Leyte': 'Visayas',
+
+  'Agusan del Norte': 'Mindanao', 'Agusan del Sur': 'Mindanao', Basilan: 'Mindanao',
+  Bukidnon: 'Mindanao', Camiguin: 'Mindanao', 'Davao de Oro': 'Mindanao',
+  'Davao del Norte': 'Mindanao', 'Davao del Sur': 'Mindanao',
+  'Davao Occidental': 'Mindanao', 'Davao Oriental': 'Mindanao',
+  'Dinagat Islands': 'Mindanao', 'Lanao del Norte': 'Mindanao',
+  'Lanao del Sur': 'Mindanao', 'Maguindanao del Norte': 'Mindanao',
+  'Maguindanao del Sur': 'Mindanao', 'Misamis Occidental': 'Mindanao',
+  'Misamis Oriental': 'Mindanao', 'North Cotabato': 'Mindanao',
+  Sarangani: 'Mindanao', 'South Cotabato': 'Mindanao', 'Sultan Kudarat': 'Mindanao',
+  Sulu: 'Mindanao', 'Surigao del Norte': 'Mindanao', 'Surigao del Sur': 'Mindanao',
+  'Tawi-Tawi': 'Mindanao', 'Zamboanga del Norte': 'Mindanao',
+  'Zamboanga del Sur': 'Mindanao', 'Zamboanga Sibugay': 'Mindanao',
 }
 
-// ---------------------------------------------------------------------------
-// Island silhouette paths — visual base layer on viewBox "0 0 260 420".
-// These give the correct Philippines shape. Province rects are overlaid on
-// top at reduced opacity to show conquest coloring without obscuring the
-// country outline.
-// ---------------------------------------------------------------------------
-const ISLAND_PATHS = [
-  { id: 'luzon',    d: 'M 94,62 120,66 130,71 136,87 130,127 130,157 172,180 177,197 167,194 130,184 106,157 89,150 83,133 89,110 91,87 94,69 Z' },
-  { id: 'mindoro',  d: 'M 112,180 112,209 100,209 98,188 Z' },
-  { id: 'palawan',  d: 'M 75,235 66,251 52,275 26,301 24,301 47,268 73,230 Z' },
-  { id: 'panay',    d: 'M 130,222 142,227 151,234 142,258 130,263 125,250 Z' },
-  { id: 'negros',   d: 'M 153,239 157,251 148,280 142,286 137,274 139,251 Z' },
-  { id: 'cebu',     d: 'M 172,235 179,244 169,274 165,269 165,251 Z' },
-  { id: 'leyte',    d: 'M 185,227 200,239 202,268 196,274 185,263 Z' },
-  { id: 'samar',    d: 'M 185,210 202,216 212,227 200,239 185,228 Z' },
-  { id: 'bohol',    d: 'M 176,262 190,262 187,279 175,279 Z' },
-  { id: 'mindanao', d: 'M 157,285 190,297 212,285 220,268 236,316 225,345 207,368 184,368 132,333 153,309 Z' },
-  { id: 'masbate',  d: 'M 162,195 174,193 178,204 171,212 158,208 Z' },
-  { id: 'siquijor', d: 'M 163,283 169,283 169,287 163,287 Z' },
-  { id: 'camiguin', d: 'M 192,258 197,258 197,262 192,262 Z' },
-  { id: 'basilan',  d: 'M 130,355 138,353 140,360 132,362 Z' },
-  { id: 'sulu',     d: 'M 110,363 116,361 114,368 108,368 Z' },
-  { id: 'tawi',     d: 'M 90,383 99,381 97,390 88,390 Z' },
-  { id: 'batanes',  d: 'M 129,10 134,10 134,16 129,16 Z' },
-  { id: 'catandu',  d: 'M 176,172 182,172 182,181 176,181 Z' },
-  { id: 'dinagat',  d: 'M 213,248 219,248 219,258 213,258 Z' },
-]
+// GADM name → our canonical name (GADM v4.1 quirks)
+const GADM_ALIASES: Record<string, string> = {
+  'National Capital Region': 'Metro Manila',
+  'Compostela Valley': 'Davao de Oro',
+  'Maguindanao': 'Maguindanao del Norte', // pre-split records
+  'Western Samar': 'Samar',
+}
 
-// ---------------------------------------------------------------------------
-// Color helpers
-// ---------------------------------------------------------------------------
-function pctFill(pct: number): string {
-  if (pct === 0)  return 'transparent'
+// ── SVG canvas dimensions ─────────────────────────────────────────────────────
+const W = 260
+const H = 420
+
+// Philippines geographic bounds
+const LON_MIN = 116.0
+const LON_MAX = 127.8
+const LAT_MIN = 4.0
+const LAT_MAX = 21.5
+
+// ── Mercator projection ────────────────────────────────────────────────────────
+
+function project(lon: number, lat: number): [number, number] {
+  return [
+    ((lon - LON_MIN) / (LON_MAX - LON_MIN)) * W,
+    ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * H,
+  ]
+}
+
+function ringsToPath(rings: number[][][]): string {
+  return rings
+    .map(ring =>
+      ring
+        .map(([lon, lat], i) => {
+          const [x, y] = project(lon, lat)
+          return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+        })
+        .join('') + 'Z'
+    )
+    .join('')
+}
+
+function featurePath(f: GeoFeature): string {
+  if (f.geometry.type === 'Polygon') {
+    return ringsToPath(f.geometry.coordinates as number[][][])
+  }
+  return (f.geometry.coordinates as number[][][][]).map(ringsToPath).join('')
+}
+
+// ── Province name extraction ───────────────────────────────────────────────────
+
+function extractName(props: Record<string, string>): string {
+  const raw = props.NAME_1 ?? props.name ?? props.PROVINCE ?? props.ADM1_EN ?? ''
+  return GADM_ALIASES[raw] ?? raw
+}
+
+// ── Colors ────────────────────────────────────────────────────────────────────
+
+function fillFor(pct: number): string {
+  if (pct === 0)  return '#e2e8f0'
   if (pct < 25)   return '#fde68a'
   if (pct < 50)   return '#fbbf24'
   if (pct < 75)   return '#34d399'
   return '#10b981'
 }
 
-function pctStroke(pct: number): string {
-  if (pct === 0)  return 'transparent'
+function strokeFor(pct: number): string {
+  if (pct === 0)  return '#cbd5e1'
   if (pct < 25)   return '#f59e0b'
   if (pct < 50)   return '#d97706'
   if (pct < 75)   return '#059669'
   return '#047857'
 }
 
-// ---------------------------------------------------------------------------
-// Bottom sheet
-// ---------------------------------------------------------------------------
+// ── GeoJSON cache + loader ────────────────────────────────────────────────────
+
+let geoCache: GeoCollection | null = null
+
+async function loadGeo(): Promise<GeoCollection | null> {
+  if (geoCache) return geoCache
+  try {
+    const r = await fetch('/data/ph-provinces.geojson')
+    if (!r.ok) return null
+    geoCache = await r.json()
+    return geoCache
+  } catch {
+    return null
+  }
+}
+
+// ── Province sheet ─────────────────────────────────────────────────────────────
+
 interface SheetProps {
   province: ProvinceStats
   conqueredIds: Set<string>
@@ -109,41 +174,38 @@ interface SheetProps {
 }
 
 function ProvinceSheet({ province, conqueredIds, onClose }: SheetProps) {
-  const sheetRef = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
-
-  useEffect(() => {
-    const el = sheetRef.current
+    const el = ref.current
     if (!el) return
     el.style.transform = 'translateY(100%)'
     requestAnimationFrame(() => {
-      el.style.transition = 'transform 0.28s ease'
+      el.style.transition = 'transform 0.26s ease'
       el.style.transform = 'translateY(0)'
     })
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  function handleClose() {
-    const el = sheetRef.current
+  function close() {
+    const el = ref.current
     if (!el) { onClose(); return }
     el.style.transform = 'translateY(100%)'
-    setTimeout(onClose, 280)
+    setTimeout(onClose, 260)
   }
 
-  const sortedMountains = [...province.mountains].sort((a, b) => b.elevation - a.elevation)
+  const sorted = [...province.mountains].sort((a, b) => b.elevation - a.elevation)
 
   return (
     <>
       <div
-        onClick={handleClose}
+        onClick={close}
         style={{ position: 'fixed', inset: 0, zIndex: 40, backgroundColor: 'rgba(0,0,0,0.35)' }}
       />
       <div
-        ref={sheetRef}
+        ref={ref}
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
           backgroundColor: '#ffffff',
@@ -152,23 +214,14 @@ function ProvinceSheet({ province, conqueredIds, onClose }: SheetProps) {
           boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
         }}
       >
-        <div style={{
-          width: '36px', height: '4px', borderRadius: '2px',
-          backgroundColor: '#e5e7eb', margin: '12px auto 0', flexShrink: 0,
-        }} />
+        <div style={{ width: '36px', height: '4px', borderRadius: '2px', backgroundColor: '#e5e7eb', margin: '12px auto 0', flexShrink: 0 }} />
 
-        <div style={{
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-          padding: '14px 20px 0', flexShrink: 0,
-        }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '14px 20px 0', flexShrink: 0 }}>
           <div>
             <p style={{ fontSize: '18px', fontWeight: 700, letterSpacing: '-0.01em' }}>{province.name}</p>
             <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>{province.islandGroup}</p>
           </div>
-          <button
-            onClick={handleClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '2px', display: 'flex' }}
-          >
+          <button onClick={close} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '2px', display: 'flex' }}>
             <X size={18} />
           </button>
         </div>
@@ -179,17 +232,15 @@ function ProvinceSheet({ province, conqueredIds, onClose }: SheetProps) {
               <span style={{ fontWeight: 700 }}>{province.conquered}</span>
               <span style={{ color: '#9ca3af' }}> / {province.total} conquered</span>
             </p>
-            <p style={{ fontSize: '13px', fontWeight: 700, color: pctStroke(province.pct) === 'transparent' ? '#9ca3af' : pctStroke(province.pct) }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: strokeFor(province.pct) }}>
               {province.pct}%
             </p>
           </div>
           <div style={{ height: '6px', backgroundColor: '#f3f4f6', borderRadius: '3px', overflow: 'hidden' }}>
             <div style={{
-              height: '100%',
-              width: `${province.pct}%`,
-              backgroundColor: pctFill(province.pct) === 'transparent' ? '#e5e7eb' : pctFill(province.pct),
-              borderRadius: '3px',
-              transition: 'width 0.4s ease',
+              height: '100%', width: `${province.pct}%`,
+              backgroundColor: fillFor(province.pct),
+              borderRadius: '3px', transition: 'width 0.4s ease',
             }} />
           </div>
         </div>
@@ -197,24 +248,21 @@ function ProvinceSheet({ province, conqueredIds, onClose }: SheetProps) {
         <div style={{ height: '1px', backgroundColor: '#f3f4f6', margin: '16px 20px 0', flexShrink: 0 }} />
 
         <div style={{ overflowY: 'auto', padding: '12px 20px 24px', flex: 1 }}>
-          {sortedMountains.length === 0 ? (
-            <p style={{ fontSize: '13px', color: '#9ca3af', paddingTop: '8px' }}>
-              No mountains catalogued for this province.
-            </p>
+          {sorted.length === 0 ? (
+            <p style={{ fontSize: '13px', color: '#9ca3af', paddingTop: '8px' }}>No mountains catalogued.</p>
           ) : (
-            sortedMountains.map((m, i) => {
+            sorted.map((m, i) => {
               const isConquered = conqueredIds.has(m.id)
               return (
                 <Link
                   key={m.id}
                   href={`/mountains/${m.id}`}
-                  onClick={handleClose}
+                  onClick={close}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '12px',
                     textDecoration: 'none', color: 'inherit',
-                    paddingTop: i === 0 ? 0 : '12px',
-                    paddingBottom: '12px',
-                    borderBottom: i < sortedMountains.length - 1 ? '1px solid #f9fafb' : 'none',
+                    paddingTop: i === 0 ? 0 : '12px', paddingBottom: '12px',
+                    borderBottom: i < sorted.length - 1 ? '1px solid #f9fafb' : 'none',
                   }}
                 >
                   <div style={{
@@ -229,7 +277,7 @@ function ProvinceSheet({ province, conqueredIds, onClose }: SheetProps) {
                       {m.name.replace(/^Mount\s+/i, 'Mt. ')}
                     </p>
                     <p style={{ fontSize: '11px', color: '#9ca3af', marginTop: '1px' }}>
-                      {m.elevation}m{isConquered ? ' · ✓ Conquered' : ''}
+                      {m.elevation}m{isConquered ? ' · Conquered' : ''}
                     </p>
                   </div>
                   <ArrowRight size={14} color="#d1d5db" />
@@ -243,83 +291,185 @@ function ProvinceSheet({ province, conqueredIds, onClose }: SheetProps) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
+// ── Zoom / pan helpers ─────────────────────────────────────────────────────────
+
+interface Viewport { x: number; y: number; scale: number }
+
+const MIN_SCALE = 1
+const MAX_SCALE = 8
+
+function clamp(vp: Viewport): Viewport {
+  const s = Math.max(MIN_SCALE, Math.min(MAX_SCALE, vp.scale))
+  const maxX = (s - 1) * W * 0.5
+  const maxY = (s - 1) * H * 0.5
+  return {
+    scale: s,
+    x: Math.max(-maxX, Math.min(maxX, vp.x)),
+    y: Math.max(-maxY, Math.min(maxY, vp.y)),
+  }
+}
+
+function zoomAround(prev: Viewport, factor: number, cx: number, cy: number): Viewport {
+  const s = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev.scale * factor))
+  const ratio = s / prev.scale
+  return clamp({
+    scale: s,
+    x: prev.x + (cx - W / 2) * (1 - ratio),
+    y: prev.y + (cy - H / 2) * (1 - ratio),
+  })
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
 export default function PhilippinesConquestMap({ mountains, conqueredIds }: Props) {
-  const [provinceShapes, setProvinceShapes] = useState<ProvinceData[]>([])
-  const [shapesLoading, setShapesLoading] = useState(true)
-  const [selectedProvince, setSelectedProvince] = useState<ProvinceStats | null>(null)
-  const [activeGroup, setActiveGroup] = useState<'All' | 'Luzon' | 'Visayas' | 'Mindanao'>('All')
+  const [geo, setGeo] = useState<GeoCollection | null>(null)
+  const [geoLoading, setGeoLoading] = useState(true)
+  const [selected, setSelected] = useState<ProvinceStats | null>(null)
+  const [activeGroup, setActiveGroup] = useState<'All' | IslandGroup>('All')
+  const [vp, setVp] = useState<Viewport>({ x: 0, y: 0, scale: 1 })
+
+  const svgRef = useRef<SVGSVGElement>(null)
+  const dragRef = useRef<{ px: number; py: number; vx: number; vy: number } | null>(null)
+  const pinchRef = useRef<{ dist: number; cx: number; cy: number } | null>(null)
+  const didDragRef = useRef(false)
 
   useEffect(() => {
-    loadProvinces().then(data => {
-      setProvinceShapes(data)
-      setShapesLoading(false)
-    })
+    loadGeo().then(data => { setGeo(data); setGeoLoading(false) })
   }, [])
 
-  const provinceStats = useMemo((): Map<string, ProvinceStats> => {
+  // ── Province stats ───────────────────────────────────────────────────────────
+
+  const stats = useMemo(() => {
     const map = new Map<string, ProvinceStats>()
-
-    for (const shape of provinceShapes) {
-      if (!map.has(shape.name)) {
-        map.set(shape.name, {
-          name: shape.name,
-          islandGroup: shape.islandGroup,
-          total: 0, conquered: 0, pct: 0, mountains: [],
-        })
-      }
-    }
-
     for (const m of mountains) {
       for (const prov of (m.provinces ?? [])) {
         if (!map.has(prov)) {
-          const shape = provinceShapes.find(s => s.name === prov)
           map.set(prov, {
             name: prov,
-            islandGroup: shape?.islandGroup ?? 'Luzon',
+            islandGroup: ISLAND_GROUPS[prov] ?? 'Luzon',
             total: 0, conquered: 0, pct: 0, mountains: [],
           })
         }
-        const stat = map.get(prov)!
-        stat.total++
-        stat.mountains.push(m)
-        if (conqueredIds.has(m.id)) stat.conquered++
+        const s = map.get(prov)!
+        s.total++
+        s.mountains.push(m)
+        if (conqueredIds.has(m.id)) s.conquered++
       }
     }
-
-    for (const stat of map.values()) {
-      stat.pct = stat.total > 0 ? Math.round((stat.conquered / stat.total) * 100) : 0
+    for (const s of map.values()) {
+      s.pct = s.total > 0 ? Math.round((s.conquered / s.total) * 100) : 0
     }
-
     return map
-  }, [provinceShapes, mountains, conqueredIds])
+  }, [mountains, conqueredIds])
 
-  const totalMountains = mountains.length
   const totalConquered = conqueredIds.size
-  const overallPct = totalMountains > 0 ? Math.round((totalConquered / totalMountains) * 100) : 0
+  const overallPct = mountains.length > 0 ? Math.round((totalConquered / mountains.length) * 100) : 0
 
-  const tappableNames = useMemo(() => {
-    const names = new Set<string>()
-    for (const [name, stat] of provinceStats.entries()) {
-      if (stat.total > 0) names.add(name)
-    }
-    return names
-  }, [provinceStats])
+  // ── SVG coordinate helper ────────────────────────────────────────────────────
 
-  function handleProvinceClick(provinceName: string) {
-    const stats = provinceStats.get(provinceName)
-    if (!stats || stats.total === 0) return
-    setSelectedProvince(stats)
+  function svgPoint(clientX: number, clientY: number): [number, number] {
+    const rect = svgRef.current!.getBoundingClientRect()
+    return [
+      ((clientX - rect.left) / rect.width) * W,
+      ((clientY - rect.top) / rect.height) * H,
+    ]
   }
+
+  // ── Mouse / wheel ────────────────────────────────────────────────────────────
+
+  const handleWheel = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault()
+    const [cx, cy] = svgPoint(e.clientX, e.clientY)
+    setVp(prev => zoomAround(prev, e.deltaY < 0 ? 1.2 : 1 / 1.2, cx, cy))
+  }, [])
+
+  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    if (e.pointerType === 'touch') return
+    svgRef.current?.setPointerCapture(e.pointerId)
+    didDragRef.current = false
+    dragRef.current = { px: e.clientX, py: e.clientY, vx: vp.x, vy: vp.y }
+  }
+
+  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    if (!dragRef.current || e.pointerType === 'touch') return
+    const drag = dragRef.current
+    const rect = svgRef.current!.getBoundingClientRect()
+    const dx = (e.clientX - drag.px) * (W / rect.width)
+    const dy = (e.clientY - drag.py) * (H / rect.height)
+    if (Math.abs(dx) + Math.abs(dy) > 2) didDragRef.current = true
+    setVp(prev => clamp({ scale: prev.scale, x: drag.vx + dx, y: drag.vy + dy }))
+  }
+
+  function handlePointerUp() {
+    dragRef.current = null
+  }
+
+  // ── Touch ────────────────────────────────────────────────────────────────────
+
+  function handleTouchStart(e: React.TouchEvent<SVGSVGElement>) {
+    didDragRef.current = false
+    if (e.touches.length === 2) {
+      const dx = e.touches[1].clientX - e.touches[0].clientX
+      const dy = e.touches[1].clientY - e.touches[0].clientY
+      pinchRef.current = {
+        dist: Math.hypot(dx, dy),
+        cx: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        cy: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      }
+    } else if (e.touches.length === 1) {
+      dragRef.current = { px: e.touches[0].clientX, py: e.touches[0].clientY, vx: vp.x, vy: vp.y }
+    }
+  }
+
+  function handleTouchMove(e: React.TouchEvent<SVGSVGElement>) {
+    e.preventDefault()
+    didDragRef.current = true
+    if (e.touches.length === 2 && pinchRef.current) {
+      const pinch = pinchRef.current
+      const dx = e.touches[1].clientX - e.touches[0].clientX
+      const dy = e.touches[1].clientY - e.touches[0].clientY
+      const newDist = Math.hypot(dx, dy)
+      const ratio = newDist / pinch.dist
+      const [cx, cy] = svgPoint(pinch.cx, pinch.cy)
+      pinchRef.current.dist = newDist
+      setVp(prev => zoomAround(prev, ratio, cx, cy))
+    } else if (e.touches.length === 1 && dragRef.current) {
+      const drag = dragRef.current
+      const rect = svgRef.current!.getBoundingClientRect()
+      const dx = (e.touches[0].clientX - drag.px) * (W / rect.width)
+      const dy = (e.touches[0].clientY - drag.py) * (H / rect.height)
+      setVp(prev => clamp({ scale: prev.scale, x: drag.vx + dx, y: drag.vy + dy }))
+    }
+  }
+
+  function handleTouchEnd(e: React.TouchEvent<SVGSVGElement>) {
+    if (e.touches.length < 2) pinchRef.current = null
+    if (e.touches.length === 0) dragRef.current = null
+  }
+
+  // ── Zoom buttons ─────────────────────────────────────────────────────────────
+
+  function zoomIn()    { setVp(prev => zoomAround(prev, 1.5, W / 2, H / 2)) }
+  function zoomOut()   { setVp(prev => prev.scale <= 1 ? prev : zoomAround(prev, 1 / 1.5, W / 2, H / 2)) }
+  function zoomReset() { setVp({ x: 0, y: 0, scale: 1 }) }
+
+  // ── Province click ────────────────────────────────────────────────────────────
+
+  function handleProvinceClick(name: string) {
+    if (didDragRef.current) return
+    const s = stats.get(name)
+    if (!s || s.total === 0) return
+    setSelected(s)
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <>
       {/* Summary strip */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
         {[
-          { label: 'Total',     value: totalMountains },
+          { label: 'Total',     value: mountains.length },
           { label: 'Conquered', value: totalConquered },
           { label: 'Overall',   value: `${overallPct}%` },
         ].map(s => (
@@ -334,18 +484,17 @@ export default function PhilippinesConquestMap({ mountains, conqueredIds }: Prop
       </div>
 
       {/* Island group filter */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
         {(['All', 'Luzon', 'Visayas', 'Mindanao'] as const).map(g => (
           <button
             key={g}
             onClick={() => setActiveGroup(g)}
             style={{
-              fontSize: '12px', fontWeight: 500,
-              padding: '5px 12px', borderRadius: '8px', cursor: 'pointer',
+              fontSize: '12px', fontWeight: 500, padding: '5px 12px',
+              borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit',
               border: activeGroup === g ? '1px solid #111827' : '1px solid #e5e7eb',
               backgroundColor: activeGroup === g ? '#111827' : '#ffffff',
               color: activeGroup === g ? '#ffffff' : '#6b7280',
-              fontFamily: 'inherit',
             }}
           >
             {g}
@@ -354,76 +503,97 @@ export default function PhilippinesConquestMap({ mountains, conqueredIds }: Prop
       </div>
 
       {/* Map */}
-      <div style={{
-        backgroundColor: '#e0f2fe',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        border: '1px solid #bae6fd',
-      }}>
-        {shapesLoading ? (
-          <div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <p style={{ fontSize: '13px', color: '#9ca3af' }}>Loading map...</p>
+      <div style={{ position: 'relative', backgroundColor: '#e0f2fe', borderRadius: '16px', overflow: 'hidden', border: '1px solid #bae6fd' }}>
+
+        {/* Zoom controls */}
+        <div style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {([
+            { label: '+', action: zoomIn },
+            { label: '−', action: zoomOut },
+          ] as const).map(({ label, action }) => (
+            <button
+              key={label}
+              onClick={action}
+              style={{
+                width: '32px', height: '32px',
+                backgroundColor: 'rgba(255,255,255,0.92)',
+                border: '1px solid #e2e8f0', borderRadius: '8px',
+                cursor: 'pointer', fontSize: '18px', lineHeight: 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'inherit', fontWeight: 300, color: '#374151',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          {vp.scale > 1 && (
+            <button
+              onClick={zoomReset}
+              style={{
+                width: '32px', height: '32px',
+                backgroundColor: 'rgba(255,255,255,0.92)',
+                border: '1px solid #e2e8f0', borderRadius: '8px',
+                cursor: 'pointer', fontSize: '9px', fontWeight: 600,
+                color: '#6b7280', fontFamily: 'inherit',
+              }}
+            >
+              Reset
+            </button>
+          )}
+        </div>
+
+        {geoLoading ? (
+          <div style={{ height: '420px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <p style={{ fontSize: '13px', color: '#94a3b8' }}>Loading map...</p>
+          </div>
+        ) : !geo ? (
+          <div style={{ height: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 24px' }}>
+            <Mountains size={32} color="#94a3b8" weight="duotone" />
+            <p style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>Map data not found.</p>
+            <p style={{ fontSize: '11px', color: '#cbd5e1', textAlign: 'center' }}>
+              Download GADM Philippines Level 1 GeoJSON and save as /public/data/ph-provinces.geojson
+            </p>
           </div>
         ) : (
           <svg
-            viewBox="0 0 260 420"
-            style={{ width: '100%', display: 'block' }}
-            aria-label="Philippines conquest map"
+            ref={svgRef}
+            viewBox={`0 0 ${W} ${H}`}
+            style={{ width: '100%', display: 'block', touchAction: 'none' }}
+            onWheel={handleWheel}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
-            {/* Layer 1 — island silhouettes (visual reference) */}
-            {ISLAND_PATHS.map(island => (
-              <path
-                key={island.id}
-                d={island.d}
-                fill="#cbd5e1"
-                stroke="#94a3b8"
-                strokeWidth="0.6"
-                strokeLinejoin="round"
-              />
-            ))}
+            <g
+              transform={`translate(${W / 2 + vp.x},${H / 2 + vp.y}) scale(${vp.scale}) translate(${-W / 2},${-H / 2})`}
+            >
+              {geo.features.map((feature, i) => {
+                const name = extractName(feature.properties)
+                const s = stats.get(name)
+                const pct = s?.pct ?? 0
+                const hasMountains = (s?.total ?? 0) > 0
+                const inGroup = activeGroup === 'All' || ISLAND_GROUPS[name] === activeGroup
 
-            {/* Layer 2 — province conquest overlays */}
-            {/* Provinces with mountains: semi-transparent color fill */}
-            {/* Provinces without: fully transparent but still tappable */}
-            {provinceShapes.map(shape => {
-              const stats      = provinceStats.get(shape.name)
-              const isVisible  = activeGroup === 'All' || shape.islandGroup === activeGroup
-              const pct        = stats?.pct ?? 0
-              const fill       = pctFill(pct)
-              const isTappable = tappableNames.has(shape.name)
-
-              return (
-                <path
-                  key={shape.name}
-                  d={shape.pathData}
-                  fill={fill}
-                  stroke={fill === 'transparent' ? 'none' : pctStroke(pct)}
-                  strokeWidth="0.3"
-                  opacity={isVisible && fill !== 'transparent' ? 0.55 : 0}
-                  style={{ cursor: isTappable ? 'pointer' : 'default' }}
-                  onClick={() => isTappable && handleProvinceClick(shape.name)}
-                >
-                  <title>
-                    {shape.name}{stats ? ` — ${stats.conquered}/${stats.total}` : ''}
-                  </title>
-                </path>
-              )
-            })}
-
-            {/* Invisible tap targets for provinces with 0 conquests */}
-            {provinceShapes
-              .filter(s => tappableNames.has(s.name) && (provinceStats.get(s.name)?.pct ?? 0) === 0)
-              .map(shape => (
-                <path
-                  key={`tap-${shape.name}`}
-                  d={shape.pathData}
-                  fill="transparent"
-                  stroke="none"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => handleProvinceClick(shape.name)}
-                />
-              ))
-            }
+                return (
+                  <path
+                    key={i}
+                    d={featurePath(feature)}
+                    fill={fillFor(pct)}
+                    stroke={strokeFor(pct)}
+                    strokeWidth={0.5 / vp.scale}
+                    opacity={inGroup ? 1 : 0.2}
+                    style={{ cursor: hasMountains ? 'pointer' : 'default' }}
+                    onClick={() => handleProvinceClick(name)}
+                  >
+                    <title>{name}{s ? ` — ${s.conquered}/${s.total} conquered` : ''}</title>
+                  </path>
+                )
+              })}
+            </g>
           </svg>
         )}
       </div>
@@ -431,7 +601,7 @@ export default function PhilippinesConquestMap({ mountains, conqueredIds }: Prop
       {/* Legend */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '10px' }}>
         {[
-          { color: '#cbd5e1', label: '0%' },
+          { color: '#e2e8f0', label: '0%' },
           { color: '#fde68a', label: '1–24%' },
           { color: '#fbbf24', label: '25–49%' },
           { color: '#34d399', label: '50–74%' },
@@ -443,16 +613,15 @@ export default function PhilippinesConquestMap({ mountains, conqueredIds }: Prop
           </div>
         ))}
       </div>
-
       <p style={{ fontSize: '11px', color: '#d1d5db', marginTop: '6px' }}>
-        Tap a highlighted province to see details
+        Scroll or pinch to zoom · Drag to pan · Tap province for details
       </p>
 
-      {selectedProvince && (
+      {selected && (
         <ProvinceSheet
-          province={selectedProvince}
+          province={selected}
           conqueredIds={conqueredIds}
-          onClose={() => setSelectedProvince(null)}
+          onClose={() => setSelected(null)}
         />
       )}
     </>
